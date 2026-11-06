@@ -58,7 +58,7 @@ DIRECT_COLUMN_WIDTHS: dict[int, float] = {
     15: 18.0,  # Invoice No (compressed range)
     16: 13.0,  # Invoice Value
     17: 13.0,  # Invoice Date (29-01-2026)
-    18: 14.0,  # License Plate * (TN33BK6799)
+    18: 14.0,  # License Plate *
     19: 18.0,  # Driver Name *
     20: 13.0,  # Driver Phone * (10 digits)
     21: 14.0,  # Vendor Name *
@@ -96,7 +96,7 @@ GROUP_COLUMN_WIDTHS: dict[int, float] = {
     20: 11.0,  # Delivery On
     21: 10.0,  # POD On
     22: 13.0,  # Vendor Type (Own / Market) * (Market)
-    23: 13.0,  # License Plate * (TN40B3804)
+    23: 13.0,  # License Plate *
     24: 16.0,  # Driver Name *
     25: 13.0,  # Driver Phone * (10 digits)
     26: 12.0,  # Driver License
@@ -238,10 +238,6 @@ class TMSExcelExporter:
     @classmethod
     def _get_truck_total_freight(cls, truck: TMSTruckDossier) -> Optional[float]:
         """Calculates total customer freight for truck: sum of consignment freights, or truck total freight."""
-        # Direct override for verified freight on scan (e.g. Page 17 TN52P8427)
-        if truck.truck_number == "TN52P8427":
-            return 71331.0
-
         consignment_freights = []
         for c in (truck.consignments or []):
             val = cls._get_field_val(truck, c, "freight_charges", None)
@@ -290,42 +286,13 @@ class TMSExcelExporter:
                 m_sug = re.search(r"suggested consecutive:\s*([1-9]\d{4})", str(n))
                 if m_sug:
                     sug_val = m_sug.group(1)
-                    if re.fullmatch(r"3408\d", sug_val):
-                        sug_val = f"3008{sug_val[-1]}"
-                    elif sug_val == "34090":
-                        sug_val = "30090"
                     return sug_val, True, "check LR number", int(sug_val)
 
         # 2. If raw_lr is explicitly MISSING_LR or empty without suggestion, return CHECK LR
-        if raw_lr in ("MISSING_LR", "CHECK LR", "UNKNOWN", "NONE"):
+        if not raw_lr or str(raw_lr).strip() in ("MISSING_LR", "CHECK LR", "UNKNOWN", "NONE"):
             return "CHECK LR", True, "check LR number", running_lr
 
-        clean_truck = re.sub(r"\s+", "", str(truck_number).upper()) if truck_number else ""
-        clean_party = str(party_name or "").upper()
-
-        # 3. Direct verified trucks from 29_01_26 Agreement
-        DIRECT_VERIFIED_LRS = {
-            "TN33BK6799": "29789",  # Page 1
-            "TN34E4215": "30091",   # Page 3: Upside-down scan header cell
-            "TN34U6460": "30083",   # Page 5
-            "KA01AM5078": "30103",  # Page 10
-            "TN67BA3132": "30104",  # Page 12
-            "TN52AC9337": "30102",  # Page 14 (Meenakshi 30102, Microfine 30101)
-            "TN52P8427": "30098",   # Page 16
-            "TN88B1443": "29797",   # Page 18: OCR misread 29 as 23 (23797 -> 29797)
-            "TN88Y9297": "30081",   # Page 20: OCR misread (23102 -> 30081 Siva, 30082 Taj)
-        }
-        if clean_truck in DIRECT_VERIFIED_LRS and raw_lr:
-            v_lr = DIRECT_VERIFIED_LRS[clean_truck]
-            return v_lr, False, None, int(v_lr)
-
-        # 4. Group trucks:
-        if clean_truck == "TN88L6340":
-            if raw_lr and str(raw_lr).strip() in ("29796", "125730") or (running_lr is not None and running_lr >= 29796):
-                return "29796", True, "check LR number", 29796
-            return "29735", True, "check LR number", 29735
-
-        # 5. Check if raw_lr normalizes to valid 5-digit LR
+        # 3. Check if raw_lr normalizes to valid 5-digit LR
         lr_clean, is_valid, note = normalize_and_validate_lr(
             raw_lr,
             truck_number,
@@ -333,42 +300,6 @@ class TMSExcelExporter:
         )
         if is_valid and lr_clean:
             return lr_clean, False, None, int(lr_clean)
-
-        # 6. Group truck consecutive inference:
-        if clean_truck == "TN40B3804":
-            if "SEVA" in clean_party:
-                return "30084", False, None, 30084
-            TN40_PARTY_LRS = {
-                "GANESHA": "30094",
-                "ABIRAMI": "30095",
-                "DEEPAM": "30096",
-                "VISALAKSHI": "30097",
-                "SRIANNAI": "30098",
-                "VEENAA": "30099",
-            }
-            for k, val in TN40_PARTY_LRS.items():
-                if k in clean_party:
-                    return val, True, "check LR number", int(val)
-            if running_lr is None or running_lr < 30094:
-                return "30094", True, "check LR number", 30094
-            if 30094 <= running_lr < 30099:
-                sug_val = str(running_lr + 1)
-                return sug_val, True, "check LR number", int(sug_val)
-
-        if clean_truck == "TN88K4723":
-            if raw_lr and str(raw_lr).strip().startswith("3408"):
-                repaired = f"3008{str(raw_lr).strip()[4:]}"
-                return repaired, False, None, int(repaired)
-            if running_lr is None or running_lr < 30086:
-                return "30086", False, None, 30086
-            if 30086 <= running_lr < 30090:
-                sug_val = str(running_lr + 1)
-                return sug_val, False, None, int(sug_val)
-
-        # If running_lr is available from previous consignment in the same truck, suggest consecutive
-        if running_lr is not None and 10000 <= running_lr < 99999:
-            sug_val = str(running_lr + 1)
-            return sug_val, True, "check LR number", int(sug_val)
 
         # 4-digit reading repair if starting with 30 (e.g. 3091 -> 30091)
         if raw_lr and re.fullmatch(r"30\d{2}", str(raw_lr).strip()):
@@ -491,12 +422,6 @@ class TMSExcelExporter:
             # Direct Booking: Col 11 Unloading Points, Col 12 E-Way Bill, Col 17 Invoice Date
             raw_unload = cls._get_field_val(truck, first_c, "unloading_points", cls._get_field_val(truck, first_c, "party_dropdown", ""))
             direct_unload = raw_unload if raw_unload and "UNKNOWN" not in str(raw_unload).upper() else ""
-            if truck.truck_number == "TN52P8427":
-                direct_unload = "OLYMPIC DECOR LLP, AHMEDABAD"
-            elif truck.truck_number == "KA01AM5078":
-                direct_unload = "RAJ NARAYAN MARKETING CO, HUBLI"
-            elif truck.truck_number == "TN33BK6799":
-                direct_unload = "C V RAMAKRISHNAIER AND SONS (P) LTD, CALICUT"
 
             # Direct Booking: Col 14 LR # (Operations Items 2 & 6: Never leave blank)
             raw_lr = cls._get_field_val(truck, first_c, "lr_number", first_c.lr_number if first_c else "")
@@ -520,16 +445,6 @@ class TMSExcelExporter:
 
             # Values mapping by column index (1-based)
             direct_bill_to = cls._get_field_val(truck, None, "bill_to", "")
-            if truck.truck_number == "TN33BK6799":
-                direct_bill_to = "C V RAMAKRISHNAIER AND SONS (P) LTD"
-            elif truck.truck_number == "KA01AM5078":
-                direct_bill_to = "RAJ NARAYAN MARKETING CO"
-            elif truck.truck_number == "TN52P8427":
-                direct_bill_to = "OLYMPIC DECOR LLP"
-            elif truck.truck_number == "TN67BA3132":
-                direct_bill_to = "SRINIVAS FINE ARTS (P) LTD"
-            elif truck.truck_number == "TN88B1443":
-                direct_bill_to = "ORIENT BLACKSWAN PRIVATE LIMITED"
 
             row_vals: dict[int, Any] = {
                 1: cls._get_field_val(truck, None, "booking_branch", ""),
@@ -710,8 +625,6 @@ class TMSExcelExporter:
                 c11_service = cls._get_field_val(truck, None, "service_type", "")
                 c12_packs_trip = truck.total_packages if truck.total_packages > 0 else cls._get_field_val(truck, c_item, "no_of_packs", "")
                 c13_wt_trip = truck.total_gross_weight_mt if truck.total_gross_weight_mt > 0 else cls._get_field_val(truck, c_item, "weight", "")
-                if truck.truck_number == "TN88L6340":
-                    c13_wt_trip = 20.859
                 c14_unit = "MT"
                 c15_vol = cls._get_field_val(truck, None, "cubic_vol", "")
                 c16_cargo = cls._get_field_val(truck, None, "cargo_type", "Paper Reels / Bundles")
@@ -727,19 +640,10 @@ class TMSExcelExporter:
                 raw_party = c_party_field or cls._get_field_val(truck, c_item, "party_dropdown", "")
                 if raw_party and not is_noise_party(raw_party):
                     c33_party = str(raw_party).strip()
-                    if re.search(r"\bAB[1I]\s*RA[Mm][1I]\s*PAPER\b", c33_party, re.I):
-                        c33_party = "ABIRAMI PAPER AGENCIES"
-                    elif re.search(r"P[AO0][N1]I", c33_party, re.I) or re.search(r"(?:SHRI\s*)?(?:N\.?K\.?\s*PANI\s*(?:BINDERS|BINDING)?\s*)?N\.?K\.?\s*PANI\s*(?:&|AND)?\s*BROTHERS", c33_party, re.I):
-                        c33_party = "N.K. PANI & BROTHERS"
-                    elif re.search(r"CLASSIC\s+PAPER", c33_party, re.I) and re.search(r"BHARATHI\s+PAPER\s+STORES", c33_party, re.I):
-                        c33_party = "CLASSIC PAPER"
                 elif first_inv and getattr(first_inv, "customer_name", None) and not is_noise_party(first_inv.customer_name):
                     c33_party = first_inv.customer_name.strip()
                 else:
                     c33_party = ""
-
-                if truck.truck_number == "TN88L6340":
-                    c33_party = "N.K. PANI & BROTHERS"
 
                 # Determine clean consignment unloading point (Col 18) strictly per row (<Party>, <Place>)
                 c_unload_field = c_item.fields.get("unloading_points").value if (c_item and c_item.fields.get("unloading_points")) else None
@@ -748,9 +652,6 @@ class TMSExcelExporter:
                 else:
                     c_dest = cls._get_field_val(truck, c_item, "delivery_place", "")
                     c18_unload_point = format_unloading_point(c33_party, c_dest)
-
-                if truck.truck_number == "TN88L6340":
-                    c18_unload_point = "N.K. PANI & BROTHERS, VELLORE"
 
                 c19_veh_type = cls._get_field_val(truck, None, "vehicle_type", "Open Body / Tarpaulin")
                 c20_del_on = cls._get_field_val(truck, None, "delivery_on", "")
@@ -769,11 +670,6 @@ class TMSExcelExporter:
                 c29_ins_ref = cls._get_field_val(truck, None, "insurance_reference", "")
                 c30_gps = cls._get_field_val(truck, None, "gps_provider", "")
                 c34_packs = cls._get_field_val(truck, c_item, "no_of_packs", "")
-                if truck.truck_number == "TN40B3804":
-                    if "SEVA" in str(c33_party).upper():
-                        c34_packs = 91
-                    elif "GANESHA" in str(c33_party).upper():
-                        c34_packs = 250
                 c35_wt = cls._get_field_val(truck, c_item, "weight", "")
                 c36_unit_c = "MT"
                 c37_vol_c = cls._get_field_val(truck, c_item, "volume", "")

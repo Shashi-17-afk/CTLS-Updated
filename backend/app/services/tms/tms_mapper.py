@@ -162,24 +162,6 @@ def resolve_fleet_driver(truck_number: Optional[str]) -> tuple[Optional[str], Op
     Only returns physically verified driver and phone numbers from official records.
     Never invents or returns dummy mock data.
     """
-    if not truck_number:
-        return None, None, None
-    clean_truck = re.sub(r"\s+", "", str(truck_number).upper())
-    
-    # Real extracted phones from source documents
-    SOURCE_VERIFIED_PHONES: dict[str, str] = {
-        "TN33BK6799": "9526661559",  # Page 1: Driver Phone No. 9526661559
-        "TN34E4215": "6369919572",   # Page 3: Owner Phone No. 6369919572
-        "TN40B3804": "9952168222",   # Page 7: Owner Phone No. 9952168222
-        "TN52P8427": "9329711081",   # Page 16: Owner Phone No. 9329711081
-        "TN88B1443": "9788148439",   # Page 18: Owner Phone No. 9788148439
-        "TN88Y9297": "9095223043",   # Page 20: Owner Phone No. 9095223043
-        "TN52H4793": "7338735386",   # Agreement 24_01: Driver Phone No.
-    }
-    
-    if clean_truck in SOURCE_VERIFIED_PHONES:
-        return None, SOURCE_VERIFIED_PHONES[clean_truck], "Phone from trip sheet scan"
-        
     return None, None, None
 
 
@@ -208,12 +190,6 @@ def normalize_and_validate_lr(
         return None, False, "check LR number"
 
     norm = digits.lstrip("0")
-
-    # OCR loop confusion repair: RapidOCR misreads '3008x' as '3408x'
-    if re.fullmatch(r"3408\d", norm):
-        norm = f"3008{norm[-1]}"
-    elif norm == "34090":
-        norm = "30090"
 
     # Exclude vehicle registration tails (Client Item 6)
     if truck_number:

@@ -290,8 +290,6 @@ class ErodeDespatchExtractor:
         name = re.sub(r"\bVJAYASHREE\b", "VIJAYASHREE", name)
         name = re.sub(r"\bPVTUMITED\b", "PVT LIMITED", name)
         name = re.sub(r"\bSHRI\b", "SHRI ", name)
-        name = re.sub(r"\bPAANI\b", "PANI", name)
-        name = re.sub(r"\bN\.?K\.?PANI\b", "N.K. PANI", name)
         name = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", name)
         name = re.sub(r"\s+", " ", name).strip()
         name = re.sub(r"^\d+\s*", "", name).strip()
@@ -305,14 +303,6 @@ class ErodeDespatchExtractor:
                 name = " ".join(tokens[:half])
         elif len(tokens) == 2 and tokens[0] == tokens[1]:
             name = tokens[0]
-
-        # Normalize known repeated or conjoined customer representations
-        if re.search(r"(?:SHRI\s*)?(?:N\.?K\.?\s*PANI\s*(?:BINDERS|BINDING)?\s*)?N\.?K\.?\s*PANI\s*(?:&|AND)?\s*BROTHERS", name, re.I):
-            name = "N.K. PANI & BROTHERS"
-        elif re.search(r"CLASSIC\s+PAPER", name, re.I) and re.search(r"BHARATHI\s+PAPER\s+STORES", name, re.I):
-            name = "CLASSIC PAPER"
-        elif re.search(r"\bAB[1I]\s*RA[Mm][1I]\s*PAPER\b", name, re.I) or re.search(r"\bABIRAMI\b", name, re.I):
-            name = "ABIRAMI PAPER AGENCIES"
 
         return name or "Customer", extracted_dest
 

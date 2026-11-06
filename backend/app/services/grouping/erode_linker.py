@@ -198,13 +198,7 @@ class ErodeLinker:
                                 linked_rows.append(d_row)
                                 claimed_invoices.add(d_row.invoice_no)
 
-                # Special case: TN40B3804 Ganesha Papers anchor (250 pkgs)
-                if not linked_rows and despatch_sheet and (lr_row.package_count == 250 or (truck_number == "TN40B3804" and lr_sheet.rows and lr_row == lr_sheet.rows[0])):
-                    ganesha_rows = [d for d in despatch_sheet.rows if extract_customer_root(d.customer_name) == "GANESHA" and d.invoice_no not in claimed_invoices]
-                    if ganesha_rows:
-                        linked_rows.extend(ganesha_rows)
-                        for d in ganesha_rows:
-                            claimed_invoices.add(d.invoice_no)
+
 
                 # Pull all other invoices of the same matched customer
                 if linked_rows and despatch_sheet:
@@ -253,21 +247,7 @@ class ErodeLinker:
                                 unmatched_invoices=[],
                             )
                         )
-                elif truck_number == "TN88K4723" and any(r.package_count == 9 for r in unmatched_lrs) and remaining_groups:
-                    # Goutamimpex India Pvt Ltd matches second LR row with 9 packages
-                    for lr_r in list(unmatched_lrs):
-                        if lr_r.package_count == 9 and remaining_groups:
-                            d_grp = remaining_groups.pop(0)
-                            for d in d_grp:
-                                claimed_invoices.add(d.invoice_no)
-                            consignments.append(
-                                LinkedErodeConsignment(
-                                    lr_row=lr_r,
-                                    linked_despatch_rows=d_grp,
-                                    unmatched_invoices=[],
-                                )
-                            )
-                            unmatched_lrs.remove(lr_r)
+
 
             # Preserve any remaining meaningful unmatched LR rows
             remaining_unmatched_lrs = [

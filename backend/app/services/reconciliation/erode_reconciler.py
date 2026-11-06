@@ -138,10 +138,7 @@ class ErodeReconciler:
                     f"LR mentions invoice(s) missing from Despatch sheet: {', '.join(item.unmatched_invoices)}"
                 )
 
-            if link_res.truck_number == "TN88L6340" and len(despatch_rows) >= 20:
-                audit_notes.append(
-                    "22 invoices accounted for at truck/consignee level; individual LR association pending CTLS confirmation."
-                )
+
 
             # D. Governing Weight & Cross-check (PRD §2, §5.5)
             # Despatch gross weight wins over LR weight
@@ -387,57 +384,47 @@ class ErodeReconciler:
         # Also backward-propagate if succeeding rows are known (e.g. 29734 if succeeding row is 29735)
         truck_wt_mt = (despatch_sheet.total_gross_weight_kg / 1000.0) if (despatch_sheet and despatch_sheet.total_gross_weight_kg) else None
 
-        if link_res.truck_number == "TN88L6340":
-            # Exactly 2 genuine physical LRs on sheet: 29735 and 29796. Do not fabricate 29734 or 29797.
-            for idx, c in enumerate(reconciled_consignments):
-                lr_val = "29735" if idx < 3 else "29796"
-                c.lr_number_raw = lr_val
-                c.lr_number_normalized = lr_val
-                c.delivery_place = "VELLORE"
-                c.consignee = "N.K. PANI & BROTHERS"
-                if not any("check LR number" in str(n) for n in c.audit_notes):
-                    c.audit_notes.append("check LR number")
-        else:
-            # 1. Forward sweep
-            prev_lr_int = None
-            for c in reconciled_consignments:
-                lr_clean, is_valid, note = normalize_and_validate_lr(
-                    c.lr_number_normalized,
-                    link_res.truck_number,
-                    truck_weight_mt=truck_wt_mt,
-                )
-                if is_valid and lr_clean:
-                    curr_int = int(lr_clean)
-                    prev_lr_int = curr_int
-                else:
-                    if prev_lr_int is not None and prev_lr_int < 99999:
-                        suggested = str(prev_lr_int + 1)
-                        c.lr_number_raw = suggested
-                        c.lr_number_normalized = suggested
-                        c.audit_notes.append(f"check LR number (suggested consecutive: {suggested})")
-                        c.status = ReconciliationStatus.REVIEW_REQUIRED_DISCREPANCY
-                        prev_lr_int = int(suggested)
-                    else:
-                        c.audit_notes.append("check LR number")
+        # Gap interpolation for consecutive LRs strictly per Rule 2:
+        # Only suggest when (a) at least one LR was read, and (b) unread LRs sit in a gap of exactly the missing count.
+        valid_lrs_by_idx: dict[int, int] = {}
+        for idx, c in enumerate(reconciled_consignments):
+            lr_clean, is_valid, note = normalize_and_validate_lr(
+                c.lr_number_normalized,
+                link_res.truck_number,
+                truck_weight_mt=truck_wt_mt,
+            )
+            if is_valid and lr_clean:
+                valid_lrs_by_idx[idx] = int(lr_clean)
+
+        sorted_valid_indices = sorted(valid_lrs_by_idx.keys())
+        for k in range(len(sorted_valid_indices) - 1):
+            i_start = sorted_valid_indices[k]
+            i_end = sorted_valid_indices[k + 1]
+            gap_count = i_end - i_start - 1
+            if gap_count > 0:
+                lr_start = valid_lrs_by_idx[i_start]
+                lr_end = valid_lrs_by_idx[i_end]
+                if lr_end - lr_start - 1 == gap_count:
+                    for offset, g_idx in enumerate(range(i_start + 1, i_end)):
+                        suggested_val = str(lr_start + 1 + offset)
+                        c = reconciled_consignments[g_idx]
+                        c.lr_number_raw = suggested_val
+                        c.lr_number_normalized = suggested_val
+                        if not any("suggested consecutive" in str(n) for n in c.audit_notes):
+                            c.audit_notes.append(f"check LR number (suggested consecutive: {suggested_val})")
                         c.status = ReconciliationStatus.REVIEW_REQUIRED_DISCREPANCY
 
-            # 2. Backward sweep for leading missing rows
-            next_lr_int = None
-            for c in reversed(reconciled_consignments):
-                lr_clean, is_valid, note = normalize_and_validate_lr(
-                    c.lr_number_normalized,
-                    link_res.truck_number,
-                    truck_weight_mt=truck_wt_mt,
-                )
-                if is_valid and lr_clean and not any("suggested" in str(n) for n in c.audit_notes):
-                    next_lr_int = int(lr_clean)
-                elif any("check LR number" in str(n) for n in c.audit_notes) and not any("suggested" in str(n) for n in c.audit_notes) and next_lr_int is not None and next_lr_int > 10000:
-                    suggested_back = str(next_lr_int - 1)
-                    c.lr_number_raw = suggested_back
-                    c.lr_number_normalized = suggested_back
-                    if not any("suggested" in str(n) for n in c.audit_notes):
-                        c.audit_notes.append(f"check LR number (suggested consecutive: {suggested_back})")
-                    next_lr_int = int(suggested_back)
+        # Mark all other unread consignments as check LR number without inventing
+        for c in reconciled_consignments:
+            lr_clean, is_valid, note = normalize_and_validate_lr(
+                c.lr_number_normalized,
+                link_res.truck_number,
+                truck_weight_mt=truck_wt_mt,
+            )
+            if not is_valid or not lr_clean:
+                if not any("check LR number" in str(n) for n in c.audit_notes):
+                    c.audit_notes.append("check LR number")
+                c.status = ReconciliationStatus.REVIEW_REQUIRED_DISCREPANCY
 
         # Direct booking override: if 1 consignment and despatch total gross weight exists, tie to it
         if len(reconciled_consignments) == 1 and despatch_sheet and despatch_sheet.total_gross_weight_kg:
