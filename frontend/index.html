@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CTLS Logistics Booking OCR & Reconciliation</title>
+  <link rel="stylesheet" href="/static/css/style.css?v=2.0.3">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>CTLS Booking OCR & Reconciliation</h1>
+        <p>Erode & Tirunelveli Document Ingestion & Verification Engine</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-airgap">
+        <span class="badge-dot"></span>
+        100% Air-Gapped Local Processing
+      </span>
+      <span class="badge badge-version">v1.0.0-complete</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- Three-Phase Wizard Progress Bar -->
+    <div id="wizardStepsBar" class="wizard-steps-bar" style="display: none;">
+      <div id="stepItem1" class="wizard-step-item active">
+        <span class="wizard-step-num">1</span>
+        <span>Extraction Review</span>
+      </div>
+      <span class="wizard-step-arrow">›</span>
+      <div id="stepItem2" class="wizard-step-item">
+        <span class="wizard-step-num">2</span>
+        <span>Complete Missing Fields</span>
+      </div>
+      <span class="wizard-step-arrow">›</span>
+      <div id="stepItem3" class="wizard-step-item">
+        <span class="wizard-step-num">3</span>
+        <span>TMS Excel & Readiness</span>
+      </div>
+    </div>
+
+    <!-- View 1: Ingestion & Setup Screen -->
+    <section id="ingestSection" class="ingest-screen">
+      <div class="ingest-header">
+        <h2>Document Bundle Processing</h2>
+        <p>Select booking configuration and upload multi-page consignment PDF or scanned images.</p>
+      </div>
+
+      <!-- Configuration Card -->
+      <div class="glass-card">
+        <h3 class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          1. Booking Parameters
+        </h3>
+        <div class="config-grid">
+          <div class="form-group">
+            <label class="form-label" for="loadingPointSelect">Loading Point</label>
+            <select id="loadingPointSelect" class="form-select">
+              <option value="erode" selected>Erode Loading Point (Active)</option>
+              <option value="tirunelveli">Tirunelveli Loading Point</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="bookingTypeSelect">Booking Type</label>
+            <select id="bookingTypeSelect" class="form-select" required>
+              <option value="group">Group Booking (one row per LR)</option>
+              <option value="direct">Direct Booking (one row per booking)</option>
+            </select>
+
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Local OCR Engine</label>
+            <div class="toggle-switch-wrapper">
+              <div class="toggle-label">
+                <span>ONNX RapidOCR</span>
+                <span class="toggle-subtext">Scan detection & deskewing</span>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="ocrToggle" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Dropzone Card -->
+      <div class="glass-card">
+        <h3 class="card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          2. Document Upload
+        </h3>
+
+        <div id="dropzone" class="dropzone">
+          <div class="dropzone-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="12" y1="18" x2="12" y2="12"></line>
+              <line x1="9" y1="15" x2="15" y2="15"></line>
+            </svg>
+          </div>
+          <p class="dropzone-prompt">Drag & drop consignment PDF or document images here</p>
+          <p class="dropzone-subtext">Supports multi-page PDF, PNG, and JPEG (up to 25 MB)</p>
+          <button type="button" class="btn btn-secondary" id="browseBtn">Browse Local Files</button>
+          <input type="file" id="fileInput" accept=".pdf, .png, .jpg, .jpeg" style="display: none;">
+        </div>
+
+        <div id="selectedFileInfo" class="selected-file-info" style="display: none;">
+          <div class="file-meta">
+            <div class="file-icon">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                <polyline points="13 2 13 9 20 9"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div id="fileNameDisplay" class="file-name">filename.pdf</div>
+              <div id="fileSizeDisplay" class="file-size">0 KB</div>
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary" id="changeFileBtn">Change</button>
+        </div>
+
+        <div style="margin-top: 1.5rem;">
+          <button type="button" class="btn btn-primary btn-lg" id="startProcessBtn" disabled>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Start Extraction & Verification
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- View 2: Split Review & Verification Screen -->
+    <section id="reviewSection" class="review-screen" style="display: none;">
+      <!-- Toolbar -->
+      <div class="review-toolbar">
+        <div class="summary-badges">
+          <button type="button" class="btn btn-secondary" id="backToUploadBtn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+            ← Upload New
+          </button>
+          <div class="summary-pill">
+            <span>Doc:</span>
+            <strong id="barDocName">bundle.pdf</strong>
+          </div>
+          <div class="summary-pill">
+            <span>Truck:</span>
+            <strong id="barTruckPlate">TN52Y7426</strong>
+          </div>
+          <div class="summary-pill">
+            <span>Accounting:</span>
+            <strong id="barPageConservation" style="color: var(--success);">9/9 Conserved</strong>
+          </div>
+          <div id="barStatusBadge" class="badge-status badge-status-confirmed">CONFIRMED</div>
+        </div>
+
+        <div class="toolbar-actions">
+          <button type="button" class="btn btn-secondary" id="recalcBtn">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+            Recalculate
+          </button>
+          <button type="button" class="btn btn-secondary" id="quickExportBtn" title="Export currently verified data directly as Excel">
+            Quick Export (.xlsx)
+          </button>
+          <button type="button" class="btn btn-primary" id="proceedToStep2Btn">
+            Complete Missing Fields (Step 2) →
+          </button>
+        </div>
+      </div>
+
+      <!-- Multi-Truck Selector Bar (Visible when document contains multiple trucks) -->
+      <div id="truckSelectorBar" class="truck-selector-bar" style="display: none;">
+        <!-- Populated via JS -->
+      </div>
+
+      <!-- Split Workspace -->
+      <div class="split-workspace">
+        
+        <!-- Left Pane: Document Viewer -->
+        <div class="left-pane">
+          <div class="pane-header">
+            <div class="page-navigator">
+              <button type="button" class="nav-btn" id="prevPageBtn" title="Previous Page">‹</button>
+              <span id="pageIndicator" class="page-indicator">Page 1 of 9</span>
+              <button type="button" class="nav-btn" id="nextPageBtn" title="Next Page">›</button>
+            </div>
+            <div id="pageClassBadge" class="page-class-badge class-invoice">MATERIAL_INVOICE (98%)</div>
+          </div>
+
+          <div class="doc-viewer-container" id="docViewerContainer">
+            <!-- Rendered iframe for PDF or img for image -->
+            <iframe id="pdfFrame" class="doc-viewer-iframe" src="about:blank"></iframe>
+            <img id="imageViewer" class="doc-viewer-img" style="display: none;" src="" alt="Document page preview">
+          </div>
+
+          <!-- Bottom Thumbnail Carousel -->
+          <div class="thumbnail-bar" id="thumbnailBar">
+            <!-- Dynamically populated page chips -->
+          </div>
+        </div>
+
+        <!-- Right Pane: Extracted Fields & Reconciliation -->
+        <div class="right-pane">
+          <div class="pane-tabs">
+            <button type="button" class="tab-btn active" data-tab="tabTMSMapping">
+              📋 TMS Field Mapping
+            </button>
+            <button type="button" class="tab-btn" data-tab="tabConsignments">
+              🚚 Consignments & Totals
+            </button>
+            <button type="button" class="tab-btn" data-tab="tabSelectedPage">
+              📄 Page Details (<span id="tabSelectedPageNum">1</span>)
+            </button>
+            <button type="button" class="tab-btn" data-tab="tabDiscrepancies">
+              ⚠️ Review Flags (<span id="tabDiscrepancyCount">0</span>)
+            </button>
+            <button type="button" class="tab-btn" data-tab="tabAccounting">
+              📊 Page Accounting
+            </button>
+          </div>
+
+          <!-- Tab 0: TMS Field Mapping & Provenance -->
+          <div class="tab-content" id="tabTMSMapping">
+            <div id="tmsMappingContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Tab 1: Consignments & Totals -->
+          <div class="tab-content" id="tabConsignments" style="display: none;">
+            <!-- Aggregated Trip Totals -->
+            <div class="totals-summary-card">
+              <div class="card-title" style="margin-bottom: 0.75rem;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="1" y="3" width="15" height="13"></rect>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                  <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                  <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+                Truck Trip Aggregated Totals
+              </div>
+              <div class="totals-grid">
+                <div class="total-metric">
+                  <span class="metric-label">Governing Gross Wt</span>
+                  <span id="metricGrossWeight" class="metric-val">17.451 MT</span>
+                  <span id="metricGrossKg" class="metric-sub">17,450.60 kg</span>
+                </div>
+                <div class="total-metric">
+                  <span class="metric-label">Total Packages</span>
+                  <span id="metricPackages" class="metric-val">340</span>
+                  <span id="metricGateSheetTie" class="metric-sub" style="color: var(--success);">Security Copy: N/A</span>
+                </div>
+                <div class="total-metric">
+                  <span class="metric-label">Consignment Value</span>
+                  <span id="metricTotalValue" class="metric-val">₹1,346,779</span>
+                  <span class="metric-sub">Sum of invoices</span>
+                </div>
+                <div class="total-metric">
+                  <span class="metric-label">Freight Charge</span>
+                  <span id="metricFreight" class="metric-val">₹0.00</span>
+                  <span id="metricFreightMode" class="metric-sub">Party Freight</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Reconciled Consignments List -->
+            <div id="consignmentsContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Tab 2: Page Details -->
+          <div class="tab-content" id="tabSelectedPage" style="display: none;">
+            <div id="selectedPageContent">
+              <!-- Rendered via JS for current active page -->
+            </div>
+          </div>
+
+          <!-- Tab 3: Discrepancies & Notices -->
+          <div class="tab-content" id="tabDiscrepancies" style="display: none;">
+            <div class="card-title">Audit Notes & Manual Review Notices</div>
+            <div id="discrepanciesContainer" class="banner-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Tab 4: Page Accounting -->
+          <div class="tab-content" id="tabAccounting" style="display: none;">
+            <div class="card-title">Strict Page Conservation & Provenance</div>
+            <div id="accountingSummary" style="margin-bottom: 1rem;">
+              <!-- Rendered via JS -->
+            </div>
+            <div id="unassignedPoolContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Sticky Action Bar -->
+          <div class="action-footer">
+            <span id="footerStatusText" style="font-size: 0.8rem; color: var(--text-secondary);">
+              Review extracted values and verify discrepancies before completing missing fields.
+            </span>
+            <div style="display: flex; gap: 0.75rem;">
+              <button type="button" class="btn btn-secondary" id="footerDirectExportBtn">
+                Quick Export (.xlsx)
+              </button>
+              <button type="button" class="btn btn-primary" id="footerProceedStep2Btn">
+                Complete Missing Fields (Step 2) →
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- View 3: Phase 2 Missing Field Completion Screen -->
+    <section id="manualCompleteSection" class="manual-complete-container" style="display: none;">
+      <div class="manual-header-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2 style="font-size: 1.35rem; font-weight: 700;">Step 2: Complete Missing Mandatory TMS Fields</h2>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">
+              Only mandatory TMS fields that could not be extracted from the documents are shown below.
+              All auto-extracted values are safely preserved.
+            </p>
+          </div>
+          <button type="button" class="btn btn-secondary" id="backToReviewBtn">
+            ← Back to Extraction Review
+          </button>
+        </div>
+
+        <!-- Quick Defaults Bar -->
+        <div class="quick-defaults-bar" style="margin-top: 1.25rem;">
+          <strong style="color: var(--text-primary); white-space: nowrap;">⚡ Quick Fleet Defaults:</strong>
+          <input type="text" id="batchVendorName" class="manual-field-input" placeholder="Vendor Name (e.g. SRM Logistics)" style="width: 200px; padding: 0.35rem 0.6rem; font-size: 0.8rem;">
+          <input type="text" id="batchBillFrom" class="manual-field-input" placeholder="Bill From Branch (e.g. Erode / Tirunelveli)" style="width: 200px; padding: 0.35rem 0.6rem; font-size: 0.8rem;">
+          <button type="button" class="btn btn-secondary" id="applyDefaultsBtn" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">
+            Apply to All Trucks
+          </button>
+        </div>
+
+        <!-- Completion Tracker -->
+        <div class="manual-progress-box">
+          <div>
+            <span style="font-size: 0.85rem; color: var(--text-secondary);">Mandatory Completion Progress:</span>
+            <strong id="manualProgressText" style="font-size: 0.95rem; margin-left: 0.5rem; color: var(--text-primary);">0 of 0 Completed</strong>
+          </div>
+          <div id="manualProgressPill" class="badge-status badge-status-discrepancy">Incomplete</div>
+        </div>
+      </div>
+
+      <!-- Truck Tab Selector in Phase 2 -->
+      <div id="manualTruckTabBar" class="truck-selector-bar" style="margin-bottom: 1.5rem;">
+        <!-- Populated via JS -->
+      </div>
+
+      <!-- Dynamic Form Container for Current Truck -->
+      <div id="manualFieldsContainer">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Phase 2 Action Footer -->
+      <div class="glass-card" style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn btn-secondary" id="manualBackBtn">
+          ← Back to Step 1
+        </button>
+        <div id="manualValidationMsg" style="font-size: 0.82rem; color: var(--danger); font-weight: 500;"></div>
+        <button type="button" class="btn btn-success btn-lg" id="validateAndProceedBtn">
+          Validate & Proceed to Step 3: TMS Excel & Readiness →
+        </button>
+      </div>
+    </section>
+
+    <!-- View 4: Phase 3 TMS Excel Export & Project Readiness Screen -->
+    <section id="readinessSection" class="readiness-container" style="display: none;">
+      <!-- Readiness Hero Card -->
+      <div class="readiness-score-hero">
+        <div>
+          <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+            <span id="readinessBadge" class="status-chip verified" style="font-size: 0.85rem; padding: 0.3rem 0.75rem;">
+              CLIENT_READY
+            </span>
+            <span style="color: var(--text-secondary); font-size: 0.85rem;">Phase 3 Final Verification</span>
+          </div>
+          <h2 style="font-size: 1.6rem; font-weight: 700;">Logistics TMS Extraction & Booking Ready</h2>
+          <p id="readinessSubtitle" style="color: var(--text-secondary); font-size: 0.9rem; max-width: 620px; margin-top: 0.4rem;">
+            All mandatory TMS booking fields are verified. Ready for direct export to CTLS TMS.
+          </p>
+        </div>
+        <div class="readiness-score-circle">
+          <span id="readinessScoreVal" class="readiness-score-val">98.5%</span>
+          <span class="readiness-score-label">Accuracy</span>
+        </div>
+      </div>
+
+      <!-- 10-Metric Evaluation Grid -->
+      <div class="readiness-grid" id="readinessGridContainer">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Readiness Notes & Accounting Card -->
+      <div class="glass-card" style="margin-bottom: 1.5rem;">
+        <h3 class="card-title" style="margin-bottom: 0.75rem;">
+          Audit Trail & Verification Highlights
+        </h3>
+        <ul id="readinessNotesList" style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-secondary); line-height: 1.8;">
+          <!-- Populated via JS -->
+        </ul>
+      </div>
+
+      <!-- Primary Action Buttons -->
+      <div class="glass-card" style="display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" id="readinessBackToEditBtn">
+            ← Edit Fields (Step 2)
+          </button>
+          <button type="button" class="btn btn-secondary" id="readinessNewUploadBtn">
+            Upload New Bundle
+          </button>
+        </div>
+        <div style="display: flex; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" id="downloadAuditJsonBtn">
+            Download JSON Dossier
+          </button>
+          <button type="button" class="btn btn-success btn-lg" id="downloadTMSExcelBtn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.4rem;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            Download Completed TMS Excel (.xlsx)
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Processing Modal Overlay -->
+  <div id="processingOverlay" class="processing-overlay" style="display: none;">
+    <div class="processing-card">
+      <div class="spinner"></div>
+      <div id="processingTitle" class="processing-title">Analyzing Documents</div>
+      <div id="processingStep" class="processing-step">Running local ONNX RapidOCR over pages...</div>
+      <div class="progress-track">
+        <div class="progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js?v=2.0.3"></script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+# Python Bytecode and Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Configuration and Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# Temporary and Uploaded Documents (Confidentiality Protection)
+uploads/
+temp/
+scratch/
+storage/
+*.pdf
+*.tiff
+*.tif
+*.jpg
+*.jpeg
+*.png
+*.xlsx
+*.csv
+
+# Exceptions for test fixtures if explicitly non-confidential mock data
+!tests/fixtures/*.mock
+
+# Pretrained OCR Models, Checkpoints, and Weights
+ocr_models/
+*.onnx
+*.pdparams
+*.pdmodel
+*.pdopt
+*.traineddata
+
+# IDE and OS Artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Benchmark and evaluation fixtures
+!benchmark/**
+!templates/**
+!CTLS TMS Booking Fields.xlsx

@@ -1,0 +1,46 @@
+BeSpoke / CTLS synthetic booking test pack
+SYNTHETIC TEST DOCUMENT - NOT A VALID TAX OR TRANSPORT DOCUMENT
+
+FILES
+ctls_tirunelveli_direct_booking.pdf  - 3 pages: 1 invoice + 1 LR + 1 EWB
+ctls_tirunelveli_group_booking.pdf   - 5 pages: 3 invoices + 1 shared LR + 1 shared EWB
+ctls_erode_direct_booking.pdf        - 3 pages: 1 invoice + 1 LR + 1 EWB
+ctls_erode_group_booking.pdf         - 5 pages: 3 invoices + 1 shared LR + 1 shared EWB
+
+SUGGESTED API REQUESTS (adjust host/route to your running local API)
+POST /api/v1/bookings/tirunelveli/extract?loading_point=tirunelveli&booking_type=direct&enable_ocr=false
+  Upload: ctls_tirunelveli_direct_booking.pdf
+POST /api/v1/bookings/tirunelveli/extract?loading_point=tirunelveli&booking_type=group&enable_ocr=false
+  Upload: ctls_tirunelveli_group_booking.pdf
+POST /api/v1/bookings/tirunelveli/extract?loading_point=erode&booking_type=direct&enable_ocr=false
+  Upload: ctls_erode_direct_booking.pdf
+POST /api/v1/bookings/tirunelveli/extract?loading_point=erode&booking_type=group&enable_ocr=false
+  Upload: ctls_erode_group_booking.pdf
+
+IMPORTANT: The Erode endpoint route/query handling above is inferred from the earlier local API example. If your app uses a separate route for Erode, use that configured route. Prior observed behavior indicated Erode was not yet enabled in the active configuration; a rejection may be expected until the client phase is enabled.
+
+EXPECTED DIRECT BOOKING OUTPUT
+- Classify 3 pages: MATERIAL_INVOICE, LORRY_RECEIPT, EWAY_BILL (names may differ in implementation).
+- Link all 3 documents into one truck/booking dossier using LR, vehicle, invoice reference, and normalized LR.
+- One invoice; one LR block; one EWB; no orphan documents.
+- Tirunelveli LR: TNV-LR-2026-020501; normalized suffix: 20501; vehicle TN 72 AB 1234.
+- Erode LR: ERD-LR-2026-020501; normalized suffix: 20501; vehicle TN 33 AB 5678.
+- Invoice math: taxable INR 30,000.00 + CGST INR 2,700.00 + SGST INR 2,700.00 = total INR 35,400.00.
+- Packages: 340; weight: 850.00 kg = 0.85000 MT.
+
+EXPECTED GROUP BOOKING OUTPUT
+- Classify 5 pages: 3 MATERIAL_INVOICE pages + 1 LORRY_RECEIPT + 1 EWAY_BILL.
+- Link 3 invoices to one shared LR/vehicle and one shared EWB; one group booking dossier.
+- Three invoice-level records, one LR-level record, one EWB-level record; no orphan documents.
+- LR suffix normalized to 20601; shared vehicle differs by loading point.
+- Packages across invoices: 175; gross weight: 437.50 kg = 0.43750 MT.
+- Invoice 00601: taxable INR 8,000.00; CGST INR 720.00; SGST INR 720.00; total INR 9,440.00; 100 packages.
+- Invoice 00602: taxable INR 3,750.00; CGST INR 337.50; SGST INR 337.50; total INR 4,425.00; 25 packages.
+- Invoice 00603: taxable INR 6,000.00; CGST INR 540.00; SGST INR 540.00; total INR 7,080.00; 50 packages.
+- Aggregate taxable INR 17,750.00; CGST INR 1,597.50; SGST INR 1,597.50; aggregate total INR 20,945.00.
+
+TESTING NOTES
+- All PDFs are text-based/searchable. They test ingestion, classification, extraction, and linking but are not scanned-image OCR fixtures.
+- E-way bill numbers and GSTIN-like values are fictional test identifiers, not actual government records.
+- Gross weight is synthetic and set to 2.5 kg per counted quantity/package for easy consistency checks.
+- Group pack's LR and EWB refer to all three invoices; expected linking is many invoices -> one LR -> one EWB.
