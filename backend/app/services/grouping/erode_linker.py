@@ -1,3 +1,4 @@
+from difflib import SequenceMatcher
 import re
 from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
@@ -189,15 +190,19 @@ class ErodeLinker:
                                 linked_rows.append(d_row)
                                 claimed_invoices.add(d_row.invoice_no)
 
-                # Stage B: Match by Customer Name keyword overlap with OCR normalization
+                # Stage B: Match by Customer Name keyword overlap or fuzzy ratio (threshold >= 0.75)
                 if not linked_rows and despatch_sheet:
                     lr_party_lower = (lr_row.party_name or "").lower()
                     lr_party_norm = re.sub(r"\s+", "", re.sub(r"[1|!]", "i", re.sub(r"0", "o", re.sub(r"5", "s", re.sub(r"8", "b", lr_party_lower)))))
+                    lr_root = extract_customer_root(lr_row.party_name or "")
                     for d_row in despatch_sheet.rows:
                         if d_row.invoice_no not in claimed_invoices:
                             d_cust_lower = (d_row.customer_name or "").lower()
+                            d_root = extract_customer_root(d_row.customer_name or "")
                             words = [w for w in re.findall(r"\b[a-z]{4,}\b", d_cust_lower) if w not in ("india", "pvt", "ltd", "agency", "agencies", "paper", "papers", "works")]
-                            if words and any((w in lr_party_lower or w in lr_party_norm) for w in words):
+                            kw_match = bool(words and any((w in lr_party_lower or w in lr_party_norm) for w in words))
+                            fuzzy_ratio = SequenceMatcher(None, lr_root, d_root).ratio() if (lr_root and d_root) else 0.0
+                            if kw_match or fuzzy_ratio >= 0.75:
                                 linked_rows.append(d_row)
                                 claimed_invoices.add(d_row.invoice_no)
 

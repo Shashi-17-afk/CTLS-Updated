@@ -763,22 +763,29 @@ class TMSMapperService:
             audit_note=driver_audit,
         )
 
-        phone_val = getattr(dossier, "driver_phone", None) or getattr(dossier, "owner_phone", None) or m_phone
+        # Rule 3: Driver Phone strictly from 'Driver Phone No.'; never from 'Owner Phone No.'
+        phone_val = getattr(dossier, "driver_phone", None) or m_phone
+        valid_phone = False
         if phone_val:
             phone_val = re.sub(r"[^\d]", "", str(phone_val))
-            if len(phone_val) > 10:
+            if len(phone_val) == 10:
+                valid_phone = True
+            elif len(phone_val) > 10:
                 phone_val = phone_val[-10:]
+                valid_phone = True
+            else:
+                phone_val = None
 
         trip_fields["driver_phone"] = TMSExtractedField(
             field_name="Driver Phone *",
             clean_id="driver_phone",
-            value=phone_val,
-            status=FieldStatus.VERIFIED if phone_val else FieldStatus.NOT_FOUND,
-            confidence=0.92 if phone_val else 0.0,
+            value=phone_val if valid_phone else None,
+            status=FieldStatus.VERIFIED if valid_phone else FieldStatus.NOT_FOUND,
+            confidence=0.92 if valid_phone else 0.0,
             source_page=min(source_pages) if (phone_val and source_pages) else None,
             is_mandatory=True,
             data_type=TMSFieldDataType.PHONE,
-            audit_note="10-digit mobile number from trip sheet" if phone_val else "10-digit mobile number for driver tracking",
+            audit_note="10-digit mobile number from trip sheet" if valid_phone else "check driver phone; manual entry required",
         )
 
         trip_fields["vendor_name"] = TMSExtractedField(
