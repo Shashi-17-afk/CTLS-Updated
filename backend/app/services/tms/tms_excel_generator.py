@@ -41,84 +41,84 @@ TEMPLATE_PATH = Path(__file__).resolve().parents[4] / "templates" / "CTLS TMS Bo
 
 # Content-aware column width specifications for clean, compact readability
 DIRECT_COLUMN_WIDTHS: dict[int, float] = {
-    1: 14.0,   # Booking Branch
-    2: 15.0,   # Bill From *
-    3: 28.0,   # Shipper * (Seshasayee Paper and Boards Limited)
+    1: 12.0,   # Booking Branch
+    2: 13.0,   # Bill From *
+    3: 26.0,   # Shipper * (Seshasayee Paper and Boards Limited)
     4: 26.0,   # Bill To * (C V RAMAKRISHNAIER AND SONS (P)
-    5: 22.0,   # Vehicle Type * (32 FT Multi-Axle / Taurus)
-    6: 13.0,   # Pickup Date * (2026-01-29)
-    7: 13.0,   # Weight (MT) *
-    8: 14.0,   # No Of Packages
-    9: 20.0,   # Cargo Type * (Paper Reels / Bundles)
-    10: 22.0,  # Consigner / Loading Points *
-    11: 32.0,  # Consignee / Unloading Points * (e.g. ORIENT BLACKSWAN... NOIDA)
-    12: 24.0,  # E-Way Bill (comma-separated list)
-    13: 13.0,  # E-Way Expiry
-    14: 11.0,  # LR # (5 digits)
-    15: 18.0,  # Invoice No (compressed range)
-    16: 13.0,  # Invoice Value
-    17: 13.0,  # Invoice Date (29-01-2026)
-    18: 14.0,  # License Plate *
-    19: 18.0,  # Driver Name *
-    20: 13.0,  # Driver Phone * (10 digits)
+    5: 18.0,   # Vehicle Type * (32 FT Multi-Axle / Taurus)
+    6: 12.0,   # Pickup Date * (dd-mm-yyyy)
+    7: 11.0,   # Weight (MT) *
+    8: 11.0,   # No Of Packages
+    9: 18.0,   # Cargo Type * (Paper Reels / Bundles)
+    10: 20.0,  # Consigner / Loading Points *
+    11: 30.0,  # Consignee / Unloading Points * (e.g. ORIENT BLACKSWAN... NOIDA)
+    12: 20.0,  # E-Way Bill (comma-separated list)
+    13: 11.0,  # E-Way Expiry
+    14: 10.0,  # LR # (5 digits)
+    15: 16.0,  # Invoice No (compressed range)
+    16: 12.0,  # Invoice Value
+    17: 12.0,  # Invoice Date (dd-mm-yyyy)
+    18: 12.0,  # License Plate *
+    19: 16.0,  # Driver Name *
+    20: 12.0,  # Driver Phone * (10 digits)
     21: 14.0,  # Vendor Name *
-    22: 15.0,  # Account Number *
+    22: 14.0,  # Account Number *
     23: 13.0,  # Account Name
     24: 12.0,  # Bank Name
-    25: 12.0,  # IFSC Code
-    26: 12.0,  # PAN Number
-    27: 16.0,  # Customer Freight Charges *
-    28: 16.0,  # Vendor Freight Charges *
-    29: 12.0,  # Booking Type (Direct)
-    30: 45.0,  # Notes
+    25: 11.0,  # IFSC Code
+    26: 11.0,  # PAN Number
+    27: 14.0,  # Customer Freight Charges *
+    28: 14.0,  # Vendor Freight Charges *
+    29: 11.0,  # Booking Type (Direct)
+    30: 36.0,  # Notes
 }
 
 GROUP_COLUMN_WIDTHS: dict[int, float] = {
-    1: 13.0,   # Booking Branch
-    2: 14.0,   # Bill From *
-    3: 11.0,   # Order Group (FTL) * (FTL)
-    4: 13.0,   # Order Type (Full Truck) * (Full Truck)
-    5: 13.0,   # Transaction Type * (Standard)
-    6: 12.0,   # Pickup Date * (2026-01-29)
-    7: 13.0,   # Insurance Type * (Owner Risk)
-    8: 28.0,   # Shipper * (Seshasayee Paper and Boards Limited)
+    1: 12.0,   # Booking Branch
+    2: 13.0,   # Bill From *
+    3: 10.0,   # Order Group (FTL) * (FTL)
+    4: 11.0,   # Order Type (Full Truck) * (Full Truck)
+    5: 11.0,   # Transaction Type * (Standard)
+    6: 12.0,   # Pickup Date * (dd-mm-yyyy)
+    7: 12.0,   # Insurance Type * (Owner Risk)
+    8: 26.0,   # Shipper * (Seshasayee Paper and Boards Limited)
     9: 20.0,   # Bill To *
     10: 12.0,  # Branch GSTN
-    11: 12.0,  # Service Type
-    12: 12.0,  # No Of Packages
-    13: 12.0,  # Weight (MT) *
+    11: 11.0,  # Service Type
+    12: 11.0,  # No Of Packages
+    13: 11.0,  # Weight (MT) *
     14: 8.0,   # Unit (MT)
-    15: 9.0,   # Cubic Vol
-    16: 20.0,  # Cargo Type * (Paper Reels / Bundles)
-    17: 20.0,  # Loading Points *
-    18: 30.0,  # Unloading Points * (Consignee + Destination)
-    19: 20.0,  # Vehicle Type
+    15: 8.0,   # Cubic Vol
+    16: 18.0,  # Cargo Type * (Paper Reels / Bundles)
+    17: 18.0,  # Loading Points *
+    18: 28.0,  # Unloading Points * (Consignee + Destination)
+    19: 18.0,  # Vehicle Type
     20: 11.0,  # Delivery On
     21: 10.0,  # POD On
-    22: 13.0,  # Vendor Type (Own / Market) * (Market)
-    23: 13.0,  # License Plate *
-    24: 16.0,  # Driver Name *
-    25: 13.0,  # Driver Phone * (10 digits)
+    22: 12.0,  # Vendor Type (Own / Market) * (Market)
+    23: 12.0,  # License Plate *
+    24: 15.0,  # Driver Name *
+    25: 12.0,  # Driver Phone * (10 digits)
     26: 12.0,  # Driver License
     27: 11.0,  # Driver DOB
     28: 12.0,  # Insurance Company
     29: 12.0,  # Insurance Reference
     30: 11.0,  # GPS Provider
-    31: 12.0,  # Consignment (1A, 1B, ...)
-    32: 28.0,  # Shipper (1st dropdown)
-    33: 28.0,  # Party (2nd dropdown, e.g. Third Party)
+    31: 11.0,  # Consignment (1A, 1B, ...)
+    32: 26.0,  # Shipper (1st dropdown)
+    33: 26.0,  # Party (2nd dropdown, e.g. Third Party)
     34: 11.0,  # No. Of Packs
     35: 11.0,  # Weight
     36: 8.0,   # Unit (MT)
     37: 8.0,   # Volume
     38: 11.0,  # LR Number
-    39: 16.0,  # LR Remarks (check LR number)
-    40: 24.0,  # Eway Bill (12-digit number / list)
-    41: 12.0,  # E-Way Expiry
+    39: 15.0,  # LR Remarks (check LR number)
+    40: 20.0,  # Eway Bill (12-digit number / list)
+    41: 11.0,  # E-Way Expiry
     42: 16.0,  # Description (cargo type)
-    43: 20.0,  # Invoice No
+    43: 18.0,  # Invoice No
     44: 12.0,  # Invoice Value
-    45: 12.0,  # Invoice Date
+    45: 12.0,  # Invoice Date (dd-mm-yyyy)
     46: 13.0,  # Freight Charges
     47: 13.0,  # Vendor Name *
     48: 12.0,  # Vendor Code *
@@ -130,24 +130,24 @@ GROUP_COLUMN_WIDTHS: dict[int, float] = {
     54: 11.0,  # PO/WO Number
     55: 11.0,  # Billing Basis
     56: 10.0,  # Advance (%)
-    57: 12.0,  # Upload File Type
-    58: 15.0,  # Customer Freight Charges *
-    59: 13.0,  # Customer Loading Charges
-    60: 13.0,  # Customer Unloading Charges
-    61: 13.0,  # Customer Detention Charges
-    62: 13.0,  # Customer Misc Charges
-    63: 15.0,  # Customer Total Charges (auto)
-    64: 15.0,  # Vendor Freight Charges *
-    65: 13.0,  # Vendor Loading Charges
-    66: 13.0,  # Vendor Unloading Charges
-    67: 13.0,  # Vendor Detention Charges
-    68: 13.0,  # Vendor Misc Charges
-    69: 15.0,  # Vendor Total Charges (auto)
-    70: 13.0,  # Margin % (auto)
-    71: 13.0,  # Margin Value (auto)
-    72: 13.0,  # Advance Value (auto)
+    57: 11.0,  # Upload File Type
+    58: 13.0,  # Customer Freight Charges *
+    59: 11.0,  # Customer Loading Charges
+    60: 11.0,  # Customer Unloading Charges
+    61: 11.0,  # Customer Detention Charges
+    62: 11.0,  # Customer Misc Charges
+    63: 13.0,  # Customer Total Charges (auto)
+    64: 13.0,  # Vendor Freight Charges *
+    65: 11.0,  # Vendor Loading Charges
+    66: 11.0,  # Vendor Unloading Charges
+    67: 11.0,  # Vendor Detention Charges
+    68: 11.0,  # Vendor Misc Charges
+    69: 13.0,  # Vendor Total Charges (auto)
+    70: 11.0,  # Margin % (auto)
+    71: 11.0,  # Margin Value (auto)
+    72: 11.0,  # Advance Value (auto)
     73: 11.0,  # Booking Type (Group)
-    74: 45.0,  # Notes
+    74: 36.0,  # Notes
 }
 
 
@@ -452,7 +452,7 @@ class TMSExcelExporter:
                 3: cls._get_field_val(truck, None, "shipper", "Seshasayee Paper and Boards Limited"),
                 4: direct_bill_to,
                 5: cls._get_field_val(truck, None, "vehicle_type", "Open Body / Tarpaulin"),
-                6: cls._get_field_val(truck, None, "pickup_date", truck.booking_date),
+                6: format_dd_mm_yyyy(cls._get_field_val(truck, None, "pickup_date", truck.booking_date)),
                 7: truck.total_gross_weight_mt if truck.total_gross_weight_mt > 0 else cls._get_field_val(truck, first_c, "weight", ""),
                 8: truck.total_packages if truck.total_packages > 0 else cls._get_field_val(truck, first_c, "no_of_packs", ""),
                 9: cls._get_field_val(truck, None, "cargo_type", "Paper Reels / Bundles"),
@@ -556,7 +556,12 @@ class TMSExcelExporter:
 
                 cell.font = data_font
                 cell.border = thin_border
-                cell.alignment = Alignment(vertical="center")
+                if col_idx in (6, 14, 17, 18, 20):
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                elif col_idx in (7, 8, 16, 27, 28):
+                    cell.alignment = Alignment(horizontal="right", vertical="center")
+                else:
+                    cell.alignment = Alignment(vertical="center")
 
             # Column 29: Booking Type (Client Item 5)
             c29_cell = ws.cell(row=current_row, column=29)
@@ -615,7 +620,7 @@ class TMSExcelExporter:
                 c3_order_group = cls._get_field_val(truck, None, "order_group_ftl", "FTL")
                 c4_order_type = cls._get_field_val(truck, None, "order_type_full_truck", "Full Truck")
                 c5_tx_type = cls._get_field_val(truck, None, "transaction_type", "Standard")
-                c6_pickup_date = cls._get_field_val(truck, None, "pickup_date", truck.booking_date)
+                c6_pickup_date = format_dd_mm_yyyy(cls._get_field_val(truck, None, "pickup_date", truck.booking_date))
                 c7_insurance_type = cls._get_field_val(truck, None, "insurance_type", "Owner Risk")
 
                 # Step 1: Shipper block - cols 8-21
@@ -829,7 +834,7 @@ class TMSExcelExporter:
                             cell.number_format = "#,##0.00"
                         else:
                             cell.value = ""
-                    elif col_idx in (23, 25, 26, 38, 40, 43, 49, 52, 53):
+                    elif col_idx in (23, 26, 38, 40, 43, 49, 52, 53):
                         # Leading zero preservation
                         cell.value = str(val) if val is not None and val != "" else ""
                         cell.number_format = "@"
@@ -856,7 +861,12 @@ class TMSExcelExporter:
 
                     cell.font = data_font
                     cell.border = thin_border
-                    cell.alignment = Alignment(vertical="center")
+                    if col_idx in (3, 4, 5, 6, 7, 14, 20, 21, 22, 23, 25, 27, 31, 36, 38, 41, 45, 55, 73):
+                        cell.alignment = Alignment(horizontal="center", vertical="center")
+                    elif col_idx in (12, 13, 34, 35, 44, 46, 56, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72):
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    else:
+                        cell.alignment = Alignment(vertical="center")
 
                 # Column 73: Booking Type (Client Item 5)
                 c73_cell = ws.cell(row=current_row, column=73)
