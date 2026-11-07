@@ -268,6 +268,11 @@ class ErodeReconciler:
             status = ReconciliationStatus.CONFIRMED
             if bill_to_differs_from_delivery or not weight_matches or item.unmatched_invoices:
                 status = ReconciliationStatus.REVIEW_REQUIRED_DISCREPANCY
+            if getattr(lr, "needs_review", False):
+                status = ReconciliationStatus.REVIEW_REQUIRED_DISCREPANCY
+                reason = getattr(lr, "review_reason", None) or "check LR number; manual review required"
+                if not any("check LR number" in str(n) for n in audit_notes):
+                    audit_notes.append(reason)
 
             src_page = getattr(lr, "source_page", None) or (lr_sheet.page_number if lr_sheet else (despatch_sheet.page_number if despatch_sheet else 1))
             inv_pages = [despatch_sheet.page_number] if despatch_sheet else []

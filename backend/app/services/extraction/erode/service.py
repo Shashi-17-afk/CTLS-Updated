@@ -141,11 +141,27 @@ class ErodeExtractionService:
                 elif class_res.classification == PageClassificationType.LORRY_RECEIPT:
                     _last_despatch_customer = None
                     _last_despatch_dest = None
+                    # Re-render at 300 DPI for high-contrast handwritten character extraction and crisp review crops (FR4)
+                    pix_lr = page.get_pixmap(dpi=300)
+                    img_lr = np.frombuffer(pix_lr.samples, dtype=np.uint8).reshape(pix_lr.height, pix_lr.width, pix_lr.n)
+                    if pix_lr.n == 4:
+                        img_lr = cv2.cvtColor(img_lr, cv2.COLOR_RGBA2RGB)
+                    elif pix_lr.n == 3:
+                        img_lr = cv2.cvtColor(img_lr, cv2.COLOR_RGB2BGR)
+                    page_image_lr = Image.fromarray(cv2.cvtColor(img_lr, cv2.COLOR_BGR2RGB))
+                    if ocr_engine:
+                        ocr_result_lr = ocr_engine.extract(page_image_lr)
+                        text_lr = ocr_result_lr.text
+                        lines_lr = ocr_result_lr.lines
+                    else:
+                        text_lr = text
+                        lines_lr = None
+
                     lr_data = ErodeLRSheetExtractor.extract(
-                        text=text,
+                        text=text_lr,
                         page_number=page_num,
-                        page_image=page_image,
-                        ocr_lines=ocr_result.lines if ocr_result else None,
+                        page_image=page_image_lr,
+                        ocr_lines=lines_lr,
                     )
                 elif class_res.classification == PageClassificationType.UNKNOWN_PAGE:
                     # Check for continuation sheet or ambiguous Despatch sheet

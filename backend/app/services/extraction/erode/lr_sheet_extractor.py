@@ -425,7 +425,7 @@ class ErodeLRSheetExtractor:
                     continue
                 # Client Item 6: Exactly 5 digits, no leading zero (019406 -> 19406)
                 clean_norm = clean.lstrip("0")
-                if clean_norm.isdigit() and len(clean_norm) == 5:
+                if clean_norm.isdigit() and len(clean_norm) in (4, 5, 6):
                     lr_anchors.append((y_mid, clean_norm, raw_cand, conf_val, box, it, has_sub))
 
         lr_anchors.sort(key=lambda x: x[0])
