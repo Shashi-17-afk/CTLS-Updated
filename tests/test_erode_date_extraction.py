@@ -117,6 +117,7 @@ def test_lr_sheet_pate_label():
 # ===========================================================================
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not PDF_PATH.exists(), reason="24_01_26 Agreement PDF fixture missing")
 def test_all_10_trucks_have_valid_booking_date():
     with open(PDF_PATH, "rb") as f:

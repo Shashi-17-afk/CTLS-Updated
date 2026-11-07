@@ -414,7 +414,7 @@ class ErodeDespatchExtractor:
                 x_mid = sum(p[0] for p in box) / 4.0
                 y_mid = sum(p[1] for p in box) / 4.0
                 if (x_mid / page_w) >= 0.78:
-                    m = re.findall(r"(?:1)?(5\d{11}|5\d{10})", getattr(it, "text", ""))
+                    m = re.findall(r"(?:1)?(5\d{11})\b", getattr(it, "text", ""))
                     if m:
                         eway_items.append((y_mid, m[0]))
             eway_items.sort(key=lambda x: x[0])
@@ -667,10 +667,10 @@ class ErodeDespatchExtractor:
                     row_freight = 0.0
                     is_gen_zero = True
 
-            # Parse E-Way Bill (prioritize 12 digits)
+            # Parse E-Way Bill (strictly 12 digits)
             row_ways = []
             for it in eway_items:
-                m = re.findall(r"(?:1)?(5\d{11}|5\d{10})", getattr(it, "text", ""))
+                m = re.findall(r"(?:1)?(5\d{11})\b", getattr(it, "text", ""))
                 for ew in m:
                     if ew not in row_ways:
                         row_ways.append(ew)
@@ -784,7 +784,7 @@ class ErodeDespatchExtractor:
             if not invs_on_line:
                 continue
 
-            eway_m = re.search(r"\b(5\d{10,11})\b", line)
+            eway_m = re.search(r"\b(5\d{11})\b", line)
             eway = eway_m.group(1) if eway_m else None
 
             line_dest = page_dest
@@ -837,7 +837,7 @@ class ErodeDespatchExtractor:
                 )
 
         # Ensure any remaining invoices from the stream are accounted for
-        eway_bills = list(dict.fromkeys(re.findall(r"\b(5\d{10,11})\b", text)))
+        eway_bills = list(dict.fromkeys(re.findall(r"\b(5\d{11})\b", text)))
         for idx, inv_no in enumerate(all_inv_matches, start=1):
             if inv_no not in seen_invoices:
                 seen_invoices.add(inv_no)

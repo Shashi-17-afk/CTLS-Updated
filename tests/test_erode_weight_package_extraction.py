@@ -125,6 +125,7 @@ def test_confidence_flagging_when_total_missing():
     assert sheet.confidence < 0.50
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not os.path.exists(FIXTURE_PDF), reason="23-page fixture PDF not available")
 def test_all_10_trucks_weight_and_package_ground_truth():
     """End-to-end integration test asserting all 10 trucks match Ground Truth for Gross Weight and Packages."""

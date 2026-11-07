@@ -85,7 +85,7 @@ class ImagePreprocessor:
                         if -15.0 <= ang <= 15.0:
                             angles.append(ang)
 
-            if len(angles) < 5:
+            if not angles:
                 return img, 0.0
 
             angle = float(np.median(angles))

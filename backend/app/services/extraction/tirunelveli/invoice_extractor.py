@@ -62,7 +62,7 @@ class MaterialInvoiceExtractor:
             flag_reason="Invoice date missing or unreadable" if date_str == "UNKNOWN_DATE" else None,
         )
 
-        # 3. Vehicle Number (e.g. TN52Y7426, TN 33 AB 1234)
+        # 3. Vehicle Number (e.g. vehicle plate, TN 33 AB 1234)
         veh_match = re.search(
             r"(?:vehicle(?:\s*registration|\s*no)?\.?[:\s]*|truck\s*no\.?[:\s]*|\b)([A-Z]{2}\s*\d{1,2}\s*[A-Z]{1,2}\s*\d{4})\b",
             text,

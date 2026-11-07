@@ -10,9 +10,10 @@ from backend.app.main import app
 
 client = TestClient(app, raise_server_exceptions=False)
 
-PDF_PATH = Path("C:/Users/Admin/.gemini/antigravity/brain/b3befcc0-943f-4cfa-bc75-354343c8efd5/.user_uploaded/media_1793266363361_4def7bee.pdf")
+PDF_PATH = Path(__file__).resolve().parent.parent / "benchmark" / "sets" / "24_01_26_Agreement.pdf"
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not PDF_PATH.exists(), reason="24_01_26 Agreement.pdf artifact not found in test environment")
 def test_erode_multi_truck_23_page_reconcile_and_export():
     """End-to-end verification of 23-page Erode multi-truck document bundle.

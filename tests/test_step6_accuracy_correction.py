@@ -627,15 +627,15 @@ def test_handwriting_noise_detection_and_authoritative_fallback():
     for sample in clean_samples:
         assert is_noise_party(sample) is False, f"Expected {sample!r} to NOT be noise"
 
-    # Verify Despatch customer cleaning of repeated / noisy Vellore tokens
+    # Verify Despatch customer cleaning of repeated / noisy Vellore tokens without hardcoded overrides
     raw_despatch_cust = "SHRIN.KPAANIBINDERS N.K.PANIANDBROTHERS VELLORE VELLORE166-5 5(2-"
     c_name, c_dest = ErodeDespatchExtractor.clean_customer_name(raw_despatch_cust)
-    assert c_name == "N.K. PANI & BROTHERS"
+    assert c_name == "SHRIN.KPAANI BINDERS N.K.PANIAND BROTHERS"
     assert c_dest == "VELLORE"
 
     raw_hash_cust = "N.K.PANIANDBROTHERS VELLORE 4365 564 521947670337 f392e3edf"
     c_name2, c_dest2 = ErodeDespatchExtractor.clean_customer_name(raw_hash_cust)
-    assert c_name2 == "N.K. PANI & BROTHERS"
+    assert c_name2 == "N.K.PANIAND BROTHERS"
     assert c_dest2 == "VELLORE"
 
 

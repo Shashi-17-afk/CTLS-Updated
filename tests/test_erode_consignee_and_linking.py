@@ -4,7 +4,7 @@ from backend.app.services.extraction.erode.despatch_extractor import ErodeDespat
 from backend.app.services.extraction.erode.service import ErodeExtractionService
 from backend.app.services.reconciliation.erode_reconciler import ErodeReconciler
 
-PDF_FIXTURE_PATH = r"C:\Users\Admin\.gemini\antigravity\brain\b3befcc0-943f-4cfa-bc75-354343c8efd5\.user_uploaded\media_1793342843505_d5f5e857.pdf"
+PDF_FIXTURE_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "benchmark", "sets", "24_01_26_Agreement.pdf")
 
 
 def test_customer_name_cleaner():
@@ -42,6 +42,7 @@ def extracted_bundles():
     return res.truck_bundles
 
 
+@pytest.mark.slow
 def test_truck4_customer_separation_and_irn_exclusion(extracted_bundles):
     """
     Truck 4 (TN59BA1080):
@@ -75,6 +76,7 @@ def test_truck4_customer_separation_and_irn_exclusion(extracted_bundles):
     }
 
 
+@pytest.mark.slow
 def test_truck2_focus_printforms(extracted_bundles):
     """Truck 2 (TN21U1899): Consignee FOCUS PRINTFORMS extracted cleanly."""
     t2_bundle = next((b for b in extracted_bundles if b.truck_number == "TN21U1899"), None)
@@ -85,6 +87,7 @@ def test_truck2_focus_printforms(extracted_bundles):
     assert any("FOCUS PRINTFORMS" in name for name in consignees)
 
 
+@pytest.mark.slow
 def test_truck7_sdr_printers(extracted_bundles):
     """Truck 7 (TN52AD9720): Consignee SDR PRINTERS extracted cleanly."""
     t7_bundle = next((b for b in extracted_bundles if b.truck_number == "TN52AD9720"), None)
@@ -95,6 +98,7 @@ def test_truck7_sdr_printers(extracted_bundles):
     assert "SDR PRINTERS" in dossier.reconciled_consignments[0].consignee
 
 
+@pytest.mark.slow
 def test_truck8_customer_names(extracted_bundles):
     """
     Truck 8 (TN52L0517):
@@ -114,6 +118,7 @@ def test_truck8_customer_names(extracted_bundles):
     assert any("SIVA BINDING WORKS" in c for c in consignees)
 
 
+@pytest.mark.slow
 def test_truck1_package_count_allocation(extracted_bundles):
     """
     Truck 1 (TN34D5532):
@@ -129,6 +134,7 @@ def test_truck1_package_count_allocation(extracted_bundles):
     assert consign_pkgs != 15, "Individual package counts should not sum to artificial count of 15"
 
 
+@pytest.mark.slow
 def test_provenance_and_eway_bills(extracted_bundles):
     """
     Checks that:

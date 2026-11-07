@@ -1,0 +1,16 @@
+{
+  "dev_sets": [
+    "29_01_26_Agreement",
+    "24_01_26_Agreement",
+    "10_09_26_agreement",
+    "Ag_779_TN24AX3283",
+    "Ag_781_TN28AR4827",
+    "Sl_5_TN52Y7426"
+  ],
+  "holdout_sets": [
+    "14_09_26_agreement",
+    "Ag_783_TN52J3665",
+    "Ag_786_TN29CH2099"
+  ]
+}
+

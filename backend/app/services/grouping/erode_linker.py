@@ -323,10 +323,10 @@ class ErodeLinker:
                 if lr_r.package_count is None or lr_r.package_count == 0:
                     lr_r.package_count = None
             elif single_truck_customer:
-                # Normalize any unlinked or OCR-garbled party on single-customer group truck (e.g. TN88L6340)
+                # Normalize any unlinked or OCR-garbled party on single-customer group truck
                 lr_party_upper = (lr_r.party_name or "").upper()
                 c_root = extract_customer_root(single_truck_customer)
-                if c_root in lr_party_upper or "PANI" in lr_party_upper or re.search(r"P[AO0][N1]I", lr_party_upper):
+                if c_root and c_root in lr_party_upper:
                     lr_r.party_name = single_truck_customer
                     if single_truck_dest and not lr_r.delivery_to:
                         lr_r.delivery_to = single_truck_dest
@@ -453,7 +453,7 @@ class ErodeBatchPartitioner:
                     or "UNKNOWN_TRUCK"
                 )
 
-                # Normalize plate (e.g. TN21U1899 / TN81U1899)
+                # Normalize plate
                 truck_no = re.sub(r"\s+", "", truck_no).upper()
 
                 # Determine booking date (authoritative despatch header > LR sheet header > batch header inheritance)

@@ -57,7 +57,7 @@ class LorryReceiptExtractor:
             )
         )
 
-        # 2. Truck Number (e.g. TN52Y7426, TN 33 AB 1234)
+        # 2. Truck Number (e.g. vehicle plate, TN 33 AB 1234)
         truck_match = re.search(
             r"(?:vehicle(?:\s*registration|\s*no)?\.?[:\s]*|truck\s*(?:number|no)?\.?[:\s]*|\b)([A-Z]{2}\s*\d{1,2}\s*[A-Z]{1,2}\s*\d{4})\b",
             text,

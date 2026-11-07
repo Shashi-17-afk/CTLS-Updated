@@ -221,19 +221,6 @@ class RapidPaddleOCREngine(BaseOCREngine):
                 best_k = k
                 best_score = score_k
 
-            # Decisive candidate early-exit: If rotated candidate achieves strong structural score >= 180 and decisively beats 0° by 2x,
-            # remaining rotations cannot possibly beat it. Skip them to save CPU time.
-            if score_k >= 180.0 and score_k >= (score_0 * 2.0):
-                logger.info(
-                    "Decisive OCR orientation early-exit triggered at rotation k=%d (%d° CCW) "
-                    "with score=%.1f (vs 0° score=%.1f). Skipping remaining rotations.",
-                    k,
-                    k * 90,
-                    score_k,
-                    score_0,
-                )
-                break
-
         logger.info(
             "OCR orientation evaluation completed (early_exit=False). Selected rotation k=%d (%d° CCW) "
             "with score=%.1f (vs 0° score=%.1f).",

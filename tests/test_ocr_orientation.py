@@ -224,6 +224,7 @@ def test_sideways_page_fails_early_exit() -> None:
     assert early_exit is False, "Sideways page must NEVER trigger early exit at 0°"
 
 
+@pytest.mark.slow
 def test_synthetic_page_rotations_and_logging(caplog) -> None:
     """
     Tests synthetic non-square pages across rotations (0°, 90°, 180°, 270°)
@@ -289,6 +290,7 @@ def test_synthetic_page_rotations_and_logging(caplog) -> None:
         assert "Selected rotation k=3 (270° CCW)" in caplog.text
 
 
+@pytest.mark.slow
 def test_low_confidence_synthetic_page_evaluates_all_rotations(caplog) -> None:
     """
     Verifies that a page with low confidence (< 0.88) or low score does not early exit,

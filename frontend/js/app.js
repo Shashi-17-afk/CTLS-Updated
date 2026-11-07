@@ -473,7 +473,9 @@
       });
 
       if (!response.ok) {
-        let errorMsg = `Server error ${response.status} (${response.statusText || 'Error'})`;
+        let errorMsg = response.status === 502
+          ? '502 Bad Gateway: Upstream OCR service is unavailable or timed out.'
+          : `Server error ${response.status} (${response.statusText || 'Error'})`;
         try {
           const raw = await response.text();
           if (raw) {

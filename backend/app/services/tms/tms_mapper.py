@@ -174,8 +174,8 @@ def normalize_and_validate_lr(
     Validates and normalizes LR number per Client Items 2 & 6:
     - Exactly 5 digits
     - No leading zero (e.g. 019406 -> 19406)
-    - Excludes vehicle registration tails (e.g. 9385 from TN52AD9385 or 7266 from TN52P7266)
-    - Excludes gross weight parsed as LR (e.g. 29796 on TN88L6340)
+    - Excludes vehicle registration tails
+    - Excludes gross weight parsed as LR
     Returns: (normalized_lr, is_valid, note)
     """
     if not lr_str:

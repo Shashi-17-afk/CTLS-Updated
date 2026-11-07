@@ -381,7 +381,7 @@ class ErodeReconciler:
                 )
 
         # Client Item 2: Erode consecutive hint: suggest N+2 if preceding rows are N, N+1
-        # Also backward-propagate if succeeding rows are known (e.g. 29734 if succeeding row is 29735)
+        # Also backward-propagate if succeeding rows are known
         truck_wt_mt = (despatch_sheet.total_gross_weight_kg / 1000.0) if (despatch_sheet and despatch_sheet.total_gross_weight_kg) else None
 
         # Gap interpolation for consecutive LRs strictly per Rule 2:
