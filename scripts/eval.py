@@ -202,7 +202,7 @@ def evaluate_dataset(pdf_path: Path, truth_path: Path, is_holdout: bool = False)
     excel_bytes = resp_exp.content
     results_dir = ROOT_DIR / "benchmark" / "results"
     results_dir.mkdir(parents=True, exist_ok=True)
-    with open(results_dir / f"phase1_{pdf_path.stem}.xlsx", "wb") as f_out:
+    with open(results_dir / f"phase3_{pdf_path.stem}.xlsx", "wb") as f_out:
         f_out.write(excel_bytes)
 
     wb_val = openpyxl.load_workbook(io.BytesIO(excel_bytes), data_only=True)

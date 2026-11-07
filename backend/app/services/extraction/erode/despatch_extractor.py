@@ -51,21 +51,93 @@ class ErodeDespatchExtractor:
         re.IGNORECASE,
     )
 
+    @staticmethod
+    def forward_fill_customer(rows: list[ErodeDespatchRow]) -> None:
+        """
+        Forward-fills blank 'Customer' placeholders with the last known real customer name and destination.
+        Called after multi-page Despatch sheets are merged in the partitioner so that cross-page
+        continuation rows inherit the correct customer context from the previous page.
+        Only fills rows whose customer_name is 'Customer' or empty; never overwrites a known name.
+        """
+        last_customer: str = ""
+        last_dest: str = ""
+        for row in rows:
+            cname = (row.customer_name or "").strip()
+            if cname and cname.upper() not in ("CUSTOMER", "UNKNOWN"):
+                last_customer = cname
+            elif last_customer:
+                row.customer_name = last_customer
+
+            dest = (row.destination or "").strip()
+            if dest and dest.upper() not in ("UNKNOWN", "UNKNOWN_DEST", ""):
+                last_dest = dest
+            elif last_dest and (not dest or dest.upper() in ("UNKNOWN", "UNKNOWN_DEST")):
+                row.destination = last_dest
+
+    @classmethod
+    def run_self_checks(cls, sheet: "ErodeDespatchSheet") -> list[str]:
+        """
+        Runs page self-checks per Phase 3 spec. Returns a list of audit warning strings.
+        Failing checks flag the truck; they never patch the data.
+        """
+        warnings: list[str] = []
+        rows = sheet.rows or []
+
+        # Check 1: Row count vs stated No of Inv
+        if sheet.no_of_invoices is not None and len(rows) != sheet.no_of_invoices:
+            warnings.append(
+                f"Invoice count mismatch: despatch header says {sheet.no_of_invoices} invoices "
+                f"but {len(rows)} rows were extracted. VERIFY."
+            )
+
+        # Check 2: Bundle sum vs stated Total Bundles (if per-row packages were available)
+        # (We don't track per-row bundles currently, so skip per-row sum check)
+
+        # Check 3: One EWB per invoice row
+        multi_ewb_rows = [r.invoice_no for r in rows if r.eway_bill_no and len(r.eway_bill_no.split(",")) > 1]
+        if multi_ewb_rows:
+            warnings.append(
+                f"Multiple EWBs on single invoice row for invoices: {', '.join(multi_ewb_rows)}. VERIFY."
+            )
+
+        # Check 4: EWB count vs invoice count
+        ewb_count = sum(1 for r in rows if r.eway_bill_no)
+        if rows and ewb_count < len(rows):
+            warnings.append(
+                f"E-way bill missing on {len(rows) - ewb_count} of {len(rows)} invoice rows. VERIFY."
+            )
+
+        # Check 5: Plausible gross weight (flag > 55 MT as likely mis-read)
+        if sheet.total_gross_weight_kg and sheet.total_gross_weight_kg > 55000.0:
+            warnings.append(
+                f"Implausible gross weight {sheet.total_gross_weight_kg / 1000.0:.3f} MT (> 55 MT). VERIFY."
+            )
+
+        return warnings
+
     @classmethod
     def extract(
         cls,
         text: str,
         page_number: int = 1,
         ocr_lines: Optional[list] = None,
-    ) -> ErodeDespatchSheet:
-        """Extracts complete Despatch Details structure from OCR / raw text."""
+        prev_customer: Optional[str] = None,
+        prev_dest: Optional[str] = None,
+    ) -> "ErodeDespatchSheet":
+        """Extracts complete Despatch Details structure from OCR / raw text.
+
+        Args:
+            prev_customer: Customer name carried forward from the last row of the preceding page
+                           (used when this is a continuation Despatch sheet).
+            prev_dest: Destination city carried forward from the last row of the preceding page.
+        """
         truck_number = cls._extract_truck(text)
         date_str = cls._extract_date(text)
         rows: list[ErodeDespatchRow] = []
         if ocr_lines:
-            rows = cls._extract_rows_spatial(ocr_lines)
+            rows = cls._extract_rows_spatial(ocr_lines, prev_customer=prev_customer, prev_dest=prev_dest)
         if not rows:
-            rows = cls._extract_rows(text)
+            rows = cls._extract_rows(text, prev_customer=prev_customer, prev_dest=prev_dest)
         bundles, gross_wt, net_wt, no_inv, package_unit = cls._extract_totals(text)
 
         # Cross-reconcile individual row weights against total gross weight, net weight, and tare ratio
@@ -153,7 +225,7 @@ class ErodeDespatchExtractor:
         else:
             confidence = 0.85
 
-        return ErodeDespatchSheet(
+        sheet = ErodeDespatchSheet(
             page_number=page_number,
             truck_number=truck_number,
             date=date_str,
@@ -165,6 +237,9 @@ class ErodeDespatchExtractor:
             no_of_invoices=no_inv or len(rows),
             confidence=round(confidence, 4),
         )
+        # Run page self-checks and attach warnings to the sheet
+        sheet.self_check_warnings = cls.run_self_checks(sheet)
+        return sheet
 
     @classmethod
     def _extract_truck(cls, text: str) -> Optional[str]:
@@ -332,8 +407,19 @@ class ErodeDespatchExtractor:
         return None
 
     @classmethod
-    def _extract_rows_spatial(cls, ocr_lines: list, page_dest_hint: str = "UNKNOWN") -> list[ErodeDespatchRow]:
-        """Extracts table rows using DPI-normalized 2D geometric token clustering."""
+    def _extract_rows_spatial(
+        cls,
+        ocr_lines: list,
+        page_dest_hint: str = "UNKNOWN",
+        prev_customer: Optional[str] = None,
+        prev_dest: Optional[str] = None,
+    ) -> list[ErodeDespatchRow]:
+        """Extracts table rows using DPI-normalized 2D geometric token clustering.
+
+        Args:
+            prev_customer: Last known customer name from the preceding Despatch page (cross-page forward-fill).
+            prev_dest: Last known destination city from the preceding Despatch page.
+        """
         if not ocr_lines:
             return []
 
@@ -437,8 +523,8 @@ class ErodeDespatchExtractor:
             freight_items_list.sort(key=lambda x: x[0])
 
             despatch_rows: list[ErodeDespatchRow] = []
-            last_known_customer = "Customer"
-            last_known_dest = page_dest_hint
+            last_known_customer = prev_customer or "Customer"
+            last_known_dest = prev_dest or page_dest_hint
 
             for idx, (top, bottom, inv_no) in enumerate(row_bands):
                 row_items = []
@@ -566,8 +652,8 @@ class ErodeDespatchExtractor:
 
         despatch_rows = []
         seen_invoices = set()
-        last_known_customer = "Customer"
-        last_known_dest = page_dest_hint
+        last_known_customer = prev_customer or "Customer"
+        last_known_dest = prev_dest or page_dest_hint
 
         for cluster in clusters:
             items = [it for _, it in cluster]
@@ -700,7 +786,12 @@ class ErodeDespatchExtractor:
         return despatch_rows
 
     @classmethod
-    def _extract_rows(cls, text: str) -> list[ErodeDespatchRow]:
+    def _extract_rows(
+        cls,
+        text: str,
+        prev_customer: Optional[str] = None,
+        prev_dest: Optional[str] = None,
+    ) -> list[ErodeDespatchRow]:
         rows: list[ErodeDespatchRow] = []
         seen_invoices: set[str] = set()
 

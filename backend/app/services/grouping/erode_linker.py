@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from backend.app.schemas.classification import BookingType, PageClassificationType
@@ -11,6 +11,9 @@ from backend.app.schemas.erode_extraction import (
     ErodePageExtraction,
     ErodeTruckBundle,
 )
+
+if TYPE_CHECKING:
+    pass
 
 
 class LinkedErodeConsignment(BaseModel):
@@ -424,6 +427,12 @@ class ErodeBatchPartitioner:
                                 if r.invoice_no not in existing_invs:
                                     prev_b.despatch_sheet.rows.append(r)
                                     existing_invs.add(r.invoice_no)
+                            # Forward-fill customer/dest after merging continuation rows
+                            from backend.app.services.extraction.erode.despatch_extractor import ErodeDespatchExtractor
+                            ErodeDespatchExtractor.forward_fill_customer(prev_b.despatch_sheet.rows)
+                            # Re-run self-checks now that all rows are merged
+                            new_warns = ErodeDespatchExtractor.run_self_checks(prev_b.despatch_sheet)
+                            prev_b.despatch_sheet.self_check_warnings = new_warns
                         if despatch.total_bundles is not None:
                             prev_b.despatch_sheet.total_bundles = despatch.total_bundles
                             prev_b.despatch_sheet.package_unit = despatch.package_unit
@@ -547,6 +556,11 @@ class ErodeBatchPartitioner:
                         if existing.despatch_sheet.rows is None:
                             existing.despatch_sheet.rows = []
                         existing.despatch_sheet.rows.extend(b.despatch_sheet.rows)
+                        # Forward-fill customer/dest after merging across plate-matching bundles
+                        from backend.app.services.extraction.erode.despatch_extractor import ErodeDespatchExtractor
+                        ErodeDespatchExtractor.forward_fill_customer(existing.despatch_sheet.rows)
+                        new_warns = ErodeDespatchExtractor.run_self_checks(existing.despatch_sheet)
+                        existing.despatch_sheet.self_check_warnings = new_warns
                     if b.despatch_sheet.total_gross_weight_kg:
                         if not existing.despatch_sheet.total_gross_weight_kg:
                             existing.despatch_sheet.total_gross_weight_kg = b.despatch_sheet.total_gross_weight_kg
@@ -645,5 +659,9 @@ class ErodeBatchPartitioner:
             for s in b.lr_sheets:
                 if not s.date or s.date == "UNKNOWN_DATE":
                     s.date = b.booking_date
+            # Final forward-fill on every truck's despatch rows (catches single-page gaps too)
+            if b.despatch_sheet and b.despatch_sheet.rows:
+                from backend.app.services.extraction.erode.despatch_extractor import ErodeDespatchExtractor
+                ErodeDespatchExtractor.forward_fill_customer(b.despatch_sheet.rows)
 
         return final_bundles

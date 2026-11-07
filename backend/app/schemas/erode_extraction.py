@@ -77,6 +77,10 @@ class ErodeDespatchSheet(BaseModel):
     total_net_weight_kg: Optional[float] = Field(default=None, description="Total net weight (NetWt)")
     total_gross_weight_kg: Optional[float] = Field(default=None, description="Total gross weight (GrossWt)")
     no_of_invoices: Optional[int] = Field(default=None, description="No of Inv stated in totals")
+    self_check_warnings: list[str] = Field(
+        default_factory=list,
+        description="Page self-check audit flags (invoice count mismatch, bundle sum mismatch, etc.)",
+    )
     confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
