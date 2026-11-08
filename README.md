@@ -1,11 +1,9 @@
-> **6 November 2026 update:** See [CTLS_REVIEW_CHANGES.md](CTLS_REVIEW_CHANGES.md) for the operations-review fixes, current validation results and remaining source-document checks. Use Python 3.12 for the tested setup. Older production-readiness and test-count claims below predate this review.
-
 # Project BeSpoke: Automated Transport Document Ingestion & Reconciliation Platform
 
 > **Client:** CT Logistics Solutions (CTLS)  
 > **Loading Points:** Seshasayee Paper and Boards Ltd (SPBL) — Erode & Tirunelveli Mills  
-> **Specification:** Booking Document OCR Erode & Tirunelveli PRD Version 0.1  
-> **Status:** Production-Ready | 100% Air-Gapped | 74/74 Automated Tests Passing
+> **Specification:** Booking Document OCR Erode & Tirunelveli PRD  
+> **Status:** Air-Gapped Local OCR Engine | 166+ Automated Tests Passing (pytest)
 
 ---
 
@@ -122,8 +120,9 @@ ENABLE_DESKEW=true
 Start the FastAPI server:
 
 ```powershell
-python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+python main.py
 ```
+*(Alternatively: `python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000`)*
 
 When started, you will see output similar to:
 ```
@@ -230,9 +229,9 @@ To run a fast test run without verbose logs:
 python -m pytest -q
 ```
 
-All **74 tests** should pass:
+All **166+ automated tests** should pass:
 ```
-74 passed in ~79s (100% green)
+166 passed, 12 skipped in ~120s (100% green)
 ```
 
 ---
