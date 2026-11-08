@@ -47,8 +47,8 @@ git --version
 ### 2. Clone the Repository
 Open PowerShell or your terminal and clone the repository:
 ```powershell
-git clone https://github.com/Shashi-17-afk/OCR.git BeSpoke
-cd BeSpoke
+git clone https://github.com/Shashi-17-afk/CTLS-Updated.git
+cd CTLS-Updated
 ```
 
 ---
