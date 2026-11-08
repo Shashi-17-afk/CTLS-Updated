@@ -288,7 +288,7 @@ class TMSExcelExporter:
                     sug_val = m_sug.group(1)
                     return sug_val, True, "check LR number", int(sug_val)
 
-        # 2. If raw_lr is explicitly MISSING_LR or empty without suggestion, return CHECK LR
+        # 2. If raw_lr is explicitly MISSING_LR or empty, return CHECK LR
         if not raw_lr or str(raw_lr).strip() in ("MISSING_LR", "CHECK LR", "UNKNOWN", "NONE"):
             return "CHECK LR", True, "check LR number", running_lr
 
@@ -301,9 +301,10 @@ class TMSExcelExporter:
         if is_valid and lr_clean:
             return lr_clean, False, None, int(lr_clean)
 
-        # 4-digit reading repair if starting with 30 (e.g. 3091 -> 30091)
-        if raw_lr and re.fullmatch(r"30\d{2}", str(raw_lr).strip()):
-            sug_val = f"300{str(raw_lr).strip()[2:]}"
+        # 4-digit reading repair for common series (e.g. 3091 -> 30091, 3486 -> 34086, 3681 -> 36081)
+        if raw_lr and re.fullmatch(r"(?:30|34|36|37)\d{2}", str(raw_lr).strip()):
+            raw_s = str(raw_lr).strip()
+            sug_val = f"{raw_s[:2]}0{raw_s[2:]}"
             return sug_val, True, "check LR number", int(sug_val)
 
         return lr_clean or "CHECK LR", True, "check LR number", running_lr
@@ -368,9 +369,9 @@ class TMSExcelExporter:
                 problem = problem or not re.fullmatch(r"[1-9]\d{4}", str(cell.value or "")) or any("suggested consecutive" in n for n in notes)
             if key == "driver":
                 field = truck.trip_fields.get("driver_name")
-                problem = problem or (field and field.status in (FieldStatus.NEEDS_REVIEW, FieldStatus.NOT_FOUND))
+                problem = not cell.value or (field and field.status in (FieldStatus.NEEDS_REVIEW, FieldStatus.NOT_FOUND))
                 if problem:
-                    cell.value = ""
+                    cell.value = None
             if problem:
                 note = {"lr": "check LR number", "date": "check invoice date", "eway": "check e-way bill", "unload": "check unloading points", "driver": "check driver name"}[key]
                 notes.append(note)
@@ -414,6 +415,7 @@ class TMSExcelExporter:
         hdr_direct.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
         current_row = start_row
+        direct_running_lr: Optional[int] = None
         for truck in trucks:
             # Map fields for Direct Booking
             first_c = truck.consignments[0] if truck.consignments else None
@@ -426,10 +428,11 @@ class TMSExcelExporter:
             # Direct Booking: Col 14 LR # (Operations Items 2 & 6: Never leave blank)
             raw_lr = cls._get_field_val(truck, first_c, "lr_number", first_c.lr_number if first_c else "")
             c_notes = [n for c in (truck.consignments or []) for n in getattr(c, "audit_notes", [])]
-            direct_lr_val, has_check_lr, lr_note, _ = cls._resolve_5digit_lr(
+            direct_lr_val, has_check_lr, lr_note, direct_running_lr = cls._resolve_5digit_lr(
                 raw_lr,
                 truck.truck_number,
                 truck.total_gross_weight_mt,
+                running_lr=direct_running_lr,
                 audit_notes=c_notes,
             )
             if not has_check_lr and first_c and any("check LR number" in str(getattr(f, "audit_note", "") or "") for f in first_c.fields.values()):
@@ -438,10 +441,10 @@ class TMSExcelExporter:
             # Direct Booking: Col 15 Invoice No (Client Item 4: Range compression in one cell)
             direct_inv_compressed, direct_inv_dt, direct_eway_val = cls._invoice_cells(truck, truck.consignments)
 
-            # Direct Booking: Col 19 Driver Name (Operations Audit: leave blank and highlight if misread/unsure)
+            # Direct Booking: Col 19 Driver Name (Never leave blank if handwritten text is extracted)
             raw_driver = cls._get_field_val(truck, None, "driver_name", "")
-            has_check_driver = is_garbled_driver_name(raw_driver)
-            direct_driver_val = "" if has_check_driver else (raw_driver or "")
+            direct_driver_val = str(raw_driver).strip().title() if raw_driver else ""
+            has_check_driver = not direct_driver_val
 
             # Values mapping by column index (1-based)
             direct_bill_to = cls._get_field_val(truck, None, "bill_to", "")
@@ -666,8 +669,8 @@ class TMSExcelExporter:
                 c22_vendor_type = cls._get_field_val(truck, None, "vendor_type", "Market")
                 c23_plate = truck.truck_number
                 raw_c24 = cls._get_field_val(truck, None, "driver_name", "")
-                has_check_driver_grp = is_garbled_driver_name(raw_c24)
-                c24_driver_name = "" if has_check_driver_grp else (raw_c24 or "")
+                c24_driver_name = str(raw_c24).strip().title() if raw_c24 else ""
+                has_check_driver_grp = not c24_driver_name
                 c25_driver_phone = cls._get_field_val(truck, None, "driver_phone", "")
                 c26_license = cls._get_field_val(truck, None, "driver_license", "")
                 c27_dob = cls._get_field_val(truck, None, "driver_dob", "")

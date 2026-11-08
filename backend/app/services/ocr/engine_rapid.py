@@ -174,35 +174,31 @@ class RapidPaddleOCREngine(BaseOCREngine):
         )
 
         # 2. Strict Early-Exit Optimization:
-        # All 5 criteria must simultaneously hold to skip evaluating remaining rotations.
-        # If any single criterion fails, all 4 orientations are evaluated.
+        # If 0° is already strong, skip evaluating remaining rotations.
         tot_boxes_0 = h_boxes_0 + v_boxes_0
         h_ratio_0 = (h_boxes_0 / tot_boxes_0) if tot_boxes_0 > 0 else 0.0
 
         early_exit_eligible = bool(
             out_0
-            and score_0 >= 180.0                # Condition 1: Strong structural score
-            and conf_0 >= 0.88                  # Condition 2: High token recognition confidence
-            and h_ratio_0 >= 0.85               # Condition 3: At least 85% horizontal text boxes
-            and v_boxes_0 <= 1                  # Condition 4: Minimal vertical slicing noise (<= 1)
-            and (kw_0 >= 2 or num_0 >= 2)       # Condition 5a: Verified logistics vocabulary or numbers
-            and top_kw_0 >= 1                   # Condition 5b: Confirms document header is in the upper half
+            and score_0 >= 140.0                # Condition 1: Strong structural score
+            and conf_0 >= 0.78                  # Condition 2: Good token recognition confidence
+            and h_ratio_0 >= 0.75               # Condition 3: At least 75% horizontal text boxes
+            and (kw_0 >= 1 or num_0 >= 1)       # Condition 4: Verified logistics vocabulary or numbers
         )
 
         if early_exit_eligible:
             logger.info(
                 "OCR orientation early-exit triggered at 0° (score=%.1f, conf=%.2f, h_ratio=%.2f, "
-                "keywords=%d, numerics=%d, top_headers=%d). Skipping rotations 90°, 180°, 270°.",
+                "keywords=%d, numerics=%d). Skipping rotations 90°, 180°, 270°.",
                 score_0,
                 conf_0,
                 h_ratio_0,
                 kw_0,
                 num_0,
-                top_kw_0,
             )
             return out_0, 0, float(w_orig), float(h_orig)
 
-        # 3. Full evaluation across all four orientations: k=1 (90° CCW), k=2 (180°), k=3 (270° CCW / 90° CW)
+        # 3. Targeted evaluation across candidate orientations:
         candidates = {
             0: (out_0, score_0, float(w_orig), float(h_orig))
         }
@@ -220,6 +216,11 @@ class RapidPaddleOCREngine(BaseOCREngine):
             if score_k > (best_score * 1.10) and out_k:
                 best_k = k
                 best_score = score_k
+
+            # Early break: 90° CCW (k=1) is by far the standard rotation for sideways scans.
+            # If k=1 has a decisive advantage over 0°, skip evaluating 180° and 270°.
+            if k == 1 and score_k >= 160.0 and score_k > score_0 * 1.5:
+                break
 
         logger.info(
             "OCR orientation evaluation completed (early_exit=False). Selected rotation k=%d (%d° CCW) "

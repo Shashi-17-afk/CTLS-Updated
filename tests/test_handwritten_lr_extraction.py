@@ -249,3 +249,47 @@ def test_text_fallback_30xxx_and_29xxx():
     assert sheet.rows[1].source_page == 8
     assert sheet.rows[1].package_count == 40
     assert sheet.rows[1].weight_kg == 1850.0
+
+
+def test_header_metadata_and_phone_lr_separation():
+    """
+    Ensures:
+    1. Driver Name, Driver Phone, Driver License, Owner Name, Owner Phone are cleanly extracted.
+    2. Driver Name does not get overwritten by 'LR. No.'.
+    3. Phone numbers (e.g. 636599577, 99446...) are not falsely extracted as 5-digit LR numbers.
+    """
+    from PIL import Image
+    dummy_img = Image.new("RGB", (1754, 1240), color="white")
+    ocr_lines = [
+        MockOCRItem("CT LOGISTICS SOLUTIONS", [[800.0, 150.0], [1000.0, 150.0], [1000.0, 180.0], [800.0, 180.0]], 0.99),
+        MockOCRItem("Truck No: TN33BK6799", [[150.0, 240.0], [450.0, 240.0], [450.0, 270.0], [150.0, 270.0]], 0.98),
+        MockOCRItem("Owner Name: Kumar", [[200.0, 280.0], [450.0, 280.0], [450.0, 310.0], [200.0, 310.0]], 0.95),
+        MockOCRItem("Owner Phone No.: 9843378461", [[1100.0, 280.0], [1450.0, 280.0], [1450.0, 310.0], [1100.0, 310.0]], 0.95),
+        MockOCRItem("Driver Name : Cnnikrsin", [[200.0, 340.0], [450.0, 340.0], [450.0, 370.0], [200.0, 370.0]], 0.95),
+        MockOCRItem("Driver Phone No. : 9526661559", [[1100.0, 340.0], [1450.0, 340.0], [1450.0, 370.0], [1100.0, 370.0]], 0.95),
+        MockOCRItem("DL. No.: TN33-2022001", [[1500.0, 340.0], [1700.0, 340.0], [1700.0, 370.0], [1500.0, 370.0]], 0.95),
+        # Table Header
+        MockOCRItem("LR. No.:", [[150.0, 420.0], [300.0, 420.0], [300.0, 450.0], [150.0, 450.0]], 0.97),
+        MockOCRItem("Party Name", [[450.0, 420.0], [700.0, 420.0], [700.0, 450.0], [450.0, 450.0]], 0.97),
+        MockOCRItem("Weight in Kgs.", [[1300.0, 420.0], [1550.0, 420.0], [1550.0, 450.0], [1300.0, 450.0]], 0.97),
+        # Table Row
+        MockOCRItem("29789", [[150.0, 500.0], [280.0, 500.0], [280.0, 530.0], [150.0, 530.0]], 0.96),
+        MockOCRItem("CV RAMAKRISHNAIER AND SONS", [[450.0, 500.0], [900.0, 500.0], [900.0, 530.0], [450.0, 530.0]], 0.95),
+        MockOCRItem("19114.0", [[1300.0, 500.0], [1450.0, 500.0], [1450.0, 530.0], [1300.0, 530.0]], 0.95),
+    ]
+
+    sheet = ErodeLRSheetExtractor.extract(
+        text="",
+        page_number=1,
+        page_image=dummy_img,
+        ocr_lines=ocr_lines,
+    )
+
+    assert sheet.driver_name == "Cnnikrsin"
+    assert sheet.driver_phone == "9526661559"
+    assert sheet.driver_license == "TN33-2022001"
+    assert sheet.owner_name == "Kumar"
+    assert sheet.owner_phone == "9843378461"
+    assert len(sheet.rows) == 1
+    assert sheet.rows[0].lr_number == "29789"
+

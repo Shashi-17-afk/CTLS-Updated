@@ -1,3 +1,4 @@
+import gc
 import io
 import json
 import hashlib
@@ -53,27 +54,28 @@ class ErodeExtractionService:
             for page_idx in range(len(doc)):
                 page_num = page_idx + 1
                 page = doc[page_idx]
+                print(f"  [ErodeService] Processing page {page_num}/{len(doc)}...", flush=True)
 
                 # Extract digital text or run OCR
                 text = page.get_text()
                 page_image: Optional[Image.Image] = None
 
-                # Render at 300 DPI for Despatch pages (Phase 2 spec); classify first at lightweight 150 DPI
-                pix_fast = page.get_pixmap(dpi=150)
-                img_fast = np.frombuffer(pix_fast.samples, dtype=np.uint8).reshape(pix_fast.height, pix_fast.width, pix_fast.n)
-                if pix_fast.n == 4:
-                    img_fast = cv2.cvtColor(img_fast, cv2.COLOR_RGBA2RGB)
-                elif pix_fast.n == 3:
-                    img_fast = cv2.cvtColor(img_fast, cv2.COLOR_RGB2BGR)
-                page_image_fast = Image.fromarray(cv2.cvtColor(img_fast, cv2.COLOR_BGR2RGB))
-                page_image = page_image_fast
+                # Render page pixmap at 150 DPI (fast, high-accuracy single-pass OCR)
+                pix = page.get_pixmap(dpi=150)
+                img_array = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+                if pix.n == 4:
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
+                elif pix.n == 3:
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+
+                page_image = Image.fromarray(cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
                 ocr_result = None
 
                 if (not text or len(text.strip()) < 40) and ocr_engine:
-                    ocr_result = ocr_engine.extract(page_image_fast)
+                    ocr_result = ocr_engine.extract(page_image)
                     text = ocr_result.text
 
-                # Classify page (use lightweight OCR result if already done)
+                # Classify page
                 class_res = ErodePageClassifier.classify_page(text, page_number=page_num)
 
                 despatch_data: Optional[ErodeDespatchSheet] = None
@@ -81,19 +83,6 @@ class ErodeExtractionService:
                 page_warns: list[str] = []
 
                 if class_res.classification == PageClassificationType.DESPATCH_SHEET:
-                    # Re-render at 300 DPI for Despatch pages for better printed-table OCR accuracy
-                    pix_hi = page.get_pixmap(dpi=300)
-                    img_hi = np.frombuffer(pix_hi.samples, dtype=np.uint8).reshape(pix_hi.height, pix_hi.width, pix_hi.n)
-                    if pix_hi.n == 4:
-                        img_hi = cv2.cvtColor(img_hi, cv2.COLOR_RGBA2RGB)
-                    elif pix_hi.n == 3:
-                        img_hi = cv2.cvtColor(img_hi, cv2.COLOR_RGB2BGR)
-                    page_image_hi = Image.fromarray(cv2.cvtColor(img_hi, cv2.COLOR_BGR2RGB))
-                    if ocr_engine:
-                        ocr_result = ocr_engine.extract(page_image_hi)
-                        text = ocr_result.text
-                    page_image = page_image_hi
-
                     despatch_data = ErodeDespatchExtractor.extract(
                         text,
                         page_number=page_num,
@@ -116,11 +105,9 @@ class ErodeExtractionService:
                         page_warns.extend(despatch_data.self_check_warnings)
 
                     # Resilient multi-resolution pass: If dot-matrix E-Way bill characters merged (e.g. 11 digits),
-                    # re-scan this specific page at 400 DPI for complete 12-digit resolution
-                    # Resilient multi-resolution pass: If dot-matrix E-Way bill characters merged (e.g. 11 digits),
-                    # re-scan this specific page at 400 DPI for complete 12-digit resolution
+                    # re-scan this specific page at 300 DPI for complete 12-digit resolution
                     if ocr_engine and any(r.eway_bill_no and len(r.eway_bill_no) < 12 for r in despatch_data.rows):
-                        pix_high = page.get_pixmap(dpi=400)
+                        pix_high = page.get_pixmap(dpi=300)
                         img_high = np.frombuffer(pix_high.samples, dtype=np.uint8).reshape(pix_high.height, pix_high.width, pix_high.n)
                         if pix_high.n == 4:
                             img_high = cv2.cvtColor(img_high, cv2.COLOR_RGBA2RGB)
@@ -141,27 +128,11 @@ class ErodeExtractionService:
                 elif class_res.classification == PageClassificationType.LORRY_RECEIPT:
                     _last_despatch_customer = None
                     _last_despatch_dest = None
-                    # Re-render at 300 DPI for high-contrast handwritten character extraction and crisp review crops (FR4)
-                    pix_lr = page.get_pixmap(dpi=300)
-                    img_lr = np.frombuffer(pix_lr.samples, dtype=np.uint8).reshape(pix_lr.height, pix_lr.width, pix_lr.n)
-                    if pix_lr.n == 4:
-                        img_lr = cv2.cvtColor(img_lr, cv2.COLOR_RGBA2RGB)
-                    elif pix_lr.n == 3:
-                        img_lr = cv2.cvtColor(img_lr, cv2.COLOR_RGB2BGR)
-                    page_image_lr = Image.fromarray(cv2.cvtColor(img_lr, cv2.COLOR_BGR2RGB))
-                    if ocr_engine:
-                        ocr_result_lr = ocr_engine.extract(page_image_lr)
-                        text_lr = ocr_result_lr.text
-                        lines_lr = ocr_result_lr.lines
-                    else:
-                        text_lr = text
-                        lines_lr = None
-
                     lr_data = ErodeLRSheetExtractor.extract(
-                        text=text_lr,
+                        text=text,
                         page_number=page_num,
-                        page_image=page_image_lr,
-                        ocr_lines=lines_lr,
+                        page_image=page_image,
+                        ocr_lines=ocr_result.lines if ocr_result else None,
                     )
                 elif class_res.classification == PageClassificationType.UNKNOWN_PAGE:
                     # Check for continuation sheet or ambiguous Despatch sheet
@@ -211,6 +182,8 @@ class ErodeExtractionService:
                         warnings=page_warns,
                     )
                 )
+                del pix, img_array, page_image
+                gc.collect()
         finally:
             doc.close()
 

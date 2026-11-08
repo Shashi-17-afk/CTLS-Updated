@@ -98,9 +98,9 @@ if __name__ == "__main__":
     target = sys.argv[1] if len(sys.argv) > 1 else "all"
     
     files = [
-        ("TEST-m/24_01_26 Agreement.pdf", "TEST-m/CTLS_TMS_Booking_TN34D5532_10trucks.xlsx"),
-        ("TEST-m/10_09_26 agreement.pdf", "TEST-m/CTLS_TMS_Booking_TN279599_7trucks.xlsx"),
-        ("TEST-m/29_01_26 Agreement.pdf", "TEST-m/CTLS_TMS_Booking_TN33BK6799_14trucks.xlsx"),
+        ("benchmark/sets/24_01_26_Agreement.pdf", "benchmark/results/CTLS_TMS_Booking_TN34D5532_10trucks.xlsx"),
+        ("benchmark/sets/10_09_26_agreement.pdf", "benchmark/results/CTLS_TMS_Booking_TN279599_7trucks.xlsx"),
+        ("benchmark/sets/29_01_26_Agreement.pdf", "benchmark/results/CTLS_TMS_Booking_TN33BK6799_14trucks.xlsx"),
     ]
 
     for pdf, out in files:

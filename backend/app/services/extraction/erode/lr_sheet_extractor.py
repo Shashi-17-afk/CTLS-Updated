@@ -50,6 +50,54 @@ class ErodeLRSheetExtractor:
     DRIVER_PHONE_REGEX = re.compile(r"driver\s*phone\s*(?:no)?[\s.:]*(\d{5}\s*\d{5}|\d{10})", re.IGNORECASE)
     DL_NO_REGEX = re.compile(r"dl\s*no[\s:]*([a-z0-9\s/-]+?)(?=\s+\d|\n|$)", re.IGNORECASE)
 
+    @staticmethod
+    def _is_page_sideways(ocr_lines: list) -> bool:
+        truck_box = None
+        date_box = None
+        lr_box = None
+        wt_box = None
+        for it in ocr_lines:
+            t = getattr(it, "text", "").lower()
+            box = getattr(it, "box", [])
+            if not box:
+                continue
+            xm = sum(p[0] for p in box) / 4.0
+            ym = sum(p[1] for p in box) / 4.0
+            if "truck" in t and "no" in t:
+                truck_box = (xm, ym)
+            elif "date" in t or "dte" in t:
+                date_box = (xm, ym)
+            elif "lr" in t and "no" in t:
+                lr_box = (xm, ym)
+            elif "weight" in t:
+                wt_box = (xm, ym)
+
+        if truck_box and date_box:
+            dx = abs(date_box[0] - truck_box[0])
+            dy = abs(date_box[1] - truck_box[1])
+            if dy > dx * 2 and dy > 400:
+                return True
+        if lr_box and wt_box:
+            dx = abs(wt_box[0] - lr_box[0])
+            dy = abs(wt_box[1] - lr_box[1])
+            if dy > dx * 2 and dy > 400:
+                return True
+        return False
+
+    @staticmethod
+    def _clean_phone_number(raw_s: Optional[str]) -> Optional[str]:
+        if not raw_s:
+            return None
+        s = str(raw_s).replace('G', '9').replace('g', '9').replace('b', '6').replace('S', '5').replace('s', '5')
+        s = s.replace('B', '8').replace('/', '1').replace('|', '1').replace('I', '1').replace('l', '1')
+        s = s.replace('O', '0').replace('o', '0').replace('D', '0').replace('N', '9').replace('P', '8')
+        digits = re.sub(r'\D', '', s)
+        if len(digits) == 10:
+            return digits
+        elif len(digits) > 10:
+            return digits[-10:]
+        return None
+
     # LR Line item matching
     LR_START_REGEX = re.compile(
         r"^\s*(?:lr\.?\s*(?:no\.?)?\s*)?(?P<lr>[0-9][0-9bOoIl\s/]{3,6})(?=[^\d]|$)",
@@ -73,6 +121,31 @@ class ErodeLRSheetExtractor:
         if not text and ocr_lines:
             text = "\n".join(getattr(it, "text", "") for it in ocr_lines if getattr(it, "text", None))
 
+        # Automatic sideways rotation: if physical page was scanned sideways (labels aligned along X)
+        if page_image and ocr_lines and cls._is_page_sideways(ocr_lines):
+            try:
+                import cv2
+                import numpy as np
+                img_np = np.array(page_image)
+                img_up = cv2.rotate(img_np, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                page_image = Image.fromarray(img_up)
+                from backend.app.services.ocr.factory import get_ocr_engine
+                from backend.app.schemas.ocr import OCRLineItem
+                ocr_eng = get_ocr_engine()
+                out_up, _ = ocr_eng._engine(img_up)
+                if out_up:
+                    ocr_lines = [
+                        OCRLineItem(
+                            text=str(item[1]).strip(),
+                            confidence=float(item[2]),
+                            box=[[float(p[0]), float(p[1])] for p in item[0]],
+                        )
+                        for item in out_up if item and len(item) >= 3
+                    ]
+                    text = "\n".join(it.text for it in ocr_lines)
+            except Exception:
+                pass
+
         truck = cls._extract_truck(text)
         date_str = cls._extract_date(text)
         dest = cls._extract_dest(text)
@@ -87,18 +160,98 @@ class ErodeLRSheetExtractor:
         def _clean_person_name(val: Optional[str]) -> Optional[str]:
             if not val:
                 return None
-            val_clean = re.sub(r"[:_.\-]+", " ", val).strip()
+            val_clean = re.sub(r"[^A-Za-z\s.]+", " ", val).strip()
+            # Strip label prefixes if captured: "Driver Name :", "Driver:", "Owner Name:"
+            val_clean = re.sub(r"^(?:driver|owner|name|address)\s*[:.]*\s*", "", val_clean, flags=re.IGNORECASE).strip()
             val_upper = val_clean.upper()
             disallowed = (
                 "WEIGHT IN KGS", "WEIGHT IN", "TRUCK NO", "PALLIPALAYAM", "SALEM",
                 "OWNER", "DRIVER", "DL NO", "PHONE", "DATE", "SIGNATURE",
-                "SESHASAYEE", "SPB", "ERODE", "UNKNOWN", "TOTAL", "AGREEMENT"
+                "SESHASAYEE", "SPB", "ERODE", "UNKNOWN", "TOTAL", "AGREEMENT", "NAME", "ADDRESS",
+                "LR", "L.R", "LR.", "LR NO", "LR. NO", "PARTY", "INVOICE", "PACKAGES", "BUNDLES"
             )
             if any(val_upper.startswith(d) or val_upper == d for d in disallowed):
                 return None
             if len(val_clean) < 3 or not re.search(r"[A-Za-z]{2,}", val_clean):
                 return None
             return val_clean
+
+        # Targeted 2D Header Metadata extraction on upright page
+        if ocr_lines and page_image:
+            img_w, img_h = page_image.size
+            for it in ocr_lines:
+                t = getattr(it, "text", "").strip()
+                box = getattr(it, "box", [])
+                if not box:
+                    continue
+                xm = sum(p[0] for p in box) / 4.0
+                ym = sum(p[1] for p in box) / 4.0
+
+                # 1. Direct regex for label + value on the same OCR line
+                m_on = re.search(r"owner\s*name\s*[:.]*\s*([A-Za-z\s.]+)", t, re.I)
+                if m_on and not owner_name:
+                    cand_on = _clean_person_name(m_on.group(1))
+                    if cand_on:
+                        owner_name = cand_on
+
+                m_dn = re.search(r"driver\s*name\s*[:.]*\s*([A-Za-z\s.]+)", t, re.I)
+                if m_dn and not driver_name:
+                    cand_dn = _clean_person_name(m_dn.group(1))
+                    if cand_dn:
+                        driver_name = cand_dn
+
+                m_op = re.search(r"owner\s*phone\s*(?:no)?[\s.:]*([0-9\s/SsbGBONPoIl\-]{6,15})", t, re.I)
+                if m_op and not owner_phone:
+                    ph = cls._clean_phone_number(m_op.group(1))
+                    if ph:
+                        owner_phone = ph
+
+                m_dp = re.search(r"driver\s*phone\s*(?:no)?[\s.:]*([0-9\s/SsbGBONPoIl\-]{6,15})", t, re.I)
+                if m_dp and not driver_phone:
+                    ph = cls._clean_phone_number(m_dp.group(1))
+                    if ph:
+                        driver_phone = ph
+
+                m_dl = re.search(r"dl\.?\s*no\.?[\s.:]*([A-Za-z0-9/\-]+)", t, re.I)
+                if m_dl and not dl_no:
+                    cand_dl = m_dl.group(1).strip()
+                    if len(cand_dl) >= 3 and not any(k in cand_dl.lower() for k in ["driver", "phone", "name", "address", "lr"]):
+                        dl_no = cand_dl
+
+                # 2. Spatial bounding box parsing (Owner Row strictly 0.18 - 0.265 * img_h)
+                if 0.18 * img_h <= ym < 0.265 * img_h:
+                    if "phone" in t.lower() or xm > 0.60 * img_w:
+                        ph = cls._clean_phone_number(t)
+                        if ph and not owner_phone:
+                            owner_phone = ph
+                    elif 0.12 * img_w <= xm <= 0.35 * img_w:
+                        if not any(k in t.lower() for k in ["owner", "name", "address", "pallipalayam", "phone", "date", "truck"]):
+                            cleaned_o = _clean_person_name(t)
+                            if cleaned_o and not owner_name:
+                                owner_name = cleaned_o
+
+                # Driver Row strictly 0.265 - 0.325 * img_h (table headers start >= 0.33 * img_h)
+                elif 0.265 * img_h <= ym < 0.325 * img_h:
+                    if "dl" in t.lower() or xm > 0.84 * img_w:
+                        m_dl_sp = re.search(r"(?:dl\.?\s*no\.?[\s:]*)?([A-Za-z0-9/\-]+)", t, re.I)
+                        if m_dl_sp and not any(k in t.lower() for k in ["driver", "phone", "name", "address", "lr", "party"]):
+                            cand_dl = m_dl_sp.group(1).strip()
+                            if len(cand_dl) >= 3 and not dl_no:
+                                dl_no = cand_dl
+                    elif "phone" in t.lower() or (0.62 * img_w <= xm <= 0.84 * img_w):
+                        ph = cls._clean_phone_number(t)
+                        if ph and not driver_phone:
+                            driver_phone = ph
+                    elif 0.12 * img_w <= xm <= 0.35 * img_w:
+                        if not any(k in t.lower() for k in ["driver", "name", "address", "pallipalayam", "phone", "date", "lr", "party", "truck"]):
+                            cleaned_d = _clean_person_name(t)
+                            if cleaned_d and not driver_name:
+                                driver_name = cleaned_d
+
+        if driver_phone:
+            driver_phone = cls._clean_phone_number(driver_phone)
+        if owner_phone:
+            owner_phone = cls._clean_phone_number(owner_phone)
 
         owner_name = _clean_person_name(owner_name)
         driver_name = _clean_person_name(driver_name)
@@ -144,6 +297,59 @@ class ErodeLRSheetExtractor:
                     is_weight_bleed = True
             if not rows[0].lr_number or rows[0].lr_number == "MISSING_LR" or not c_valid or is_weight_bleed:
                 rows[0].lr_number = header_lr
+
+        # Targeted LR column crop fallback if spatial row extraction found no rows or unextracted LRs
+        if page_image and (not rows or any(not r.lr_number or r.lr_number == "MISSING_LR" for r in rows)):
+            try:
+                img_w, img_h = page_image.size
+                crop_box = (0, int(0.32 * img_h), int(0.38 * img_w), int(0.92 * img_h))
+                col_crop = page_image.crop(crop_box)
+                col_np = np.array(col_crop)
+                from backend.app.services.ocr.factory import get_ocr_engine
+                ocr_eng = get_ocr_engine()
+                out_col, _ = ocr_eng._engine(col_np)
+                col_lrs = []
+                for item in (out_col or []):
+                    if not item or len(item) < 3:
+                        continue
+                    cand_t = str(item[1]).strip()
+                    cand_box = item[0]
+                    box_y = sum(p[1] for p in cand_box) / 4.0 if cand_box else 0.0
+                    if re.search(r"\b(?:12[56]|185|105|63800)\d*", cand_t):
+                        continue
+                    m_sl = re.search(r"\b([23]\d)[/|\\]0*(\d{1,2})\b", cand_t)
+                    if m_sl:
+                        col_lrs.append((box_y, f"{m_sl.group(1)}1{m_sl.group(2).zfill(2)}"))
+                        continue
+                    c_clean = re.sub(r"[\s/]+", "", cand_t).replace("O", "0").replace("o", "0").replace("b", "6").replace("I", "1").replace("l", "1")
+                    m_5 = re.search(r"\b([23]\d{4})\b", c_clean)
+                    if m_5:
+                        col_lrs.append((box_y, m_5.group(1)))
+                    elif len(c_clean) == 4 and c_clean.startswith(("30", "34", "36", "37")):
+                        col_lrs.append((box_y, f"{c_clean[:2]}0{c_clean[2:]}"))
+
+                if col_lrs:
+                    col_lrs.sort(key=lambda x: x[0])
+                    if not rows:
+                        for _, lr_num in col_lrs:
+                            rows.append(
+                                ErodeLRRow(
+                                    lr_number=lr_num,
+                                    party_name="Customer",
+                                    delivery_to=dest,
+                                    raw_invoice_text="",
+                                    invoices=[],
+                                    packages_str=f"{total_packs} bundles" if total_packs else "Unspecified",
+                                    package_count=total_packs,
+                                    weight_kg=total_wt,
+                                )
+                            )
+                    else:
+                        for i, (_, lr_num) in enumerate(col_lrs):
+                            if i < len(rows) and (not rows[i].lr_number or rows[i].lr_number == "MISSING_LR"):
+                                rows[i].lr_number = lr_num
+            except Exception:
+                pass
 
         confidence = 0.95 if rows else 0.40
 
@@ -273,17 +479,32 @@ class ErodeLRSheetExtractor:
                 if is_valid and cand:
                     return cand
 
+        # Helper to ensure candidate is genuinely standalone 5-digit LR and not part of phone/invoice/date
+        def _is_clean_lr(cand_str: str, surrounding_text: str) -> bool:
+            if not cand_str or not cand_str.isdigit() or len(cand_str) != 5:
+                return False
+            if cand_str.startswith("0") or cand_str in ("63801", "63802", "63807", "63808"):
+                return False
+            if any(k in surrounding_text.lower() for k in ["phone", "mobile", "cell", "ph", "inv", "date", "eway", "gst", "irn", "driver", "owner"]):
+                return False
+            # Check if embedded in a longer number sequence (e.g. 10-digit phone or invoice)
+            if re.search(r"\d" + cand_str, surrounding_text) or re.search(cand_str + r"\d", surrounding_text):
+                return False
+            return True
+
         # 3. Check ocr_lines (supports both portrait top-right and sideways/landscape header regions)
         if ocr_lines:
             page_h = max((p[1] for it in ocr_lines for p in getattr(it, "box", [])), default=1240.0)
             page_w = max((p[0] for it in ocr_lines for p in getattr(it, "box", [])), default=1754.0)
 
-            # Check lines that contain lr / no / cn / wb / receipt keyword
+            # Check lines that contain lr / no / cn / wb / receipt keyword (strictly ignoring phone/driver/owner lines)
             for it in ocr_lines:
                 t = getattr(it, "text", "").strip()
-                if re.search(r"\b(?:lr|c\.?n\.?|wb|no|receipt|bill)\b", t, re.IGNORECASE):
+                if any(k in t.lower() for k in ["phone", "mobile", "ph", "cell", "driver", "owner", "dl", "broker", "address", "sign", "total"]):
+                    continue
+                if re.search(r"\b(?:lr|c\.?n\.?|wb|receipt|bill)\b", t, re.IGNORECASE) or (re.search(r"\bno\b", t, re.I) and not re.search(r"\b(?:lorry|truck|car)\b", t, re.I)):
                     m = re.search(r"\b([1-9]\d{4})\b", t)
-                    if m:
+                    if m and _is_clean_lr(m.group(1), t):
                         cand, is_valid, _ = normalize_and_validate_lr(
                             m.group(1),
                             truck_number=truck_number,
@@ -302,24 +523,33 @@ class ErodeLRSheetExtractor:
                 is_header_zone = (y_mid < page_h * 0.40) or (x_mid > page_w * 0.65)
                 if is_header_zone:
                     t = getattr(it, "text", "").strip()
+                    if any(k in t.lower() for k in ["phone", "mobile", "ph", "cell", "driver", "owner", "dl", "broker", "address", "sign", "total"]):
+                        continue
                     for m_cand in re.finditer(r"\b([1-9]\d{4})\b", t):
-                        cand, is_valid, _ = normalize_and_validate_lr(
-                            m_cand.group(1),
-                            truck_number=truck_number,
-                            truck_weight_mt=truck_weight_mt,
-                        )
-                        if is_valid and cand:
-                            return cand
+                        cand_s = m_cand.group(1)
+                        if _is_clean_lr(cand_s, t):
+                            cand, is_valid, _ = normalize_and_validate_lr(
+                                cand_s,
+                                truck_number=truck_number,
+                                truck_weight_mt=truck_weight_mt,
+                            )
+                            if is_valid and cand:
+                                return cand
 
         # 4. Final pass over full text for genuine 5-digit number starting with 2 or 3 (common LR series)
-        for m_cand in re.finditer(r"\b([23]\d{4})\b", text):
-            cand, is_valid, _ = normalize_and_validate_lr(
-                m_cand.group(1),
-                truck_number=truck_number,
-                truck_weight_mt=truck_weight_mt,
-            )
-            if is_valid and cand:
-                return cand
+        for line in text.splitlines():
+            if any(k in line.lower() for k in ["phone", "mobile", "ph", "cell", "driver", "owner", "dl", "broker", "address", "sign", "total"]):
+                continue
+            for m_cand in re.finditer(r"\b([23]\d{4})\b", line):
+                cand_s = m_cand.group(1)
+                if _is_clean_lr(cand_s, line):
+                    cand, is_valid, _ = normalize_and_validate_lr(
+                        cand_s,
+                        truck_number=truck_number,
+                        truck_weight_mt=truck_weight_mt,
+                    )
+                    if is_valid and cand:
+                        return cand
 
         return None
 
@@ -408,6 +638,12 @@ class ErodeLRSheetExtractor:
             if re.search(r"\b(?:bundles?|reels?|boxes?|bales?|bdl|bcy)\b", t, re.I):
                 continue
 
+            # Slashed token recovery: '30/02' -> '30102', '31/01' -> '30101'
+            m_slash = re.search(r"\b([23]\d)[/|\\]0*(\d{1,2})\b", t)
+            if m_slash:
+                repaired = f"{m_slash.group(1)}1{m_slash.group(2).zfill(2)}"
+                lr_anchors.append((y_mid, repaired, t, conf_val, box, it, True))
+
             candidates = re.findall(r"(?:^|[^\d])([0-9bOoIl\s/]{4,7})(?:$|[^\d])", t)
             for cand in candidates:
                 raw_cand = cand.strip()
@@ -425,7 +661,10 @@ class ErodeLRSheetExtractor:
                     continue
                 # Client Item 6: Exactly 5 digits, no leading zero (019406 -> 19406)
                 clean_norm = clean.lstrip("0")
-                if clean_norm.isdigit() and len(clean_norm) in (4, 5, 6):
+                if len(clean_norm) == 4 and clean_norm.startswith(("30", "34", "36", "37")):
+                    repaired_4 = f"{clean_norm[:2]}0{clean_norm[2:]}"
+                    lr_anchors.append((y_mid, repaired_4, raw_cand, conf_val, box, it, True))
+                elif clean_norm.isdigit() and len(clean_norm) == 5:
                     lr_anchors.append((y_mid, clean_norm, raw_cand, conf_val, box, it, has_sub))
 
         lr_anchors.sort(key=lambda x: x[0])

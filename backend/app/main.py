@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.app.api.v1.router import api_v1_router
@@ -33,6 +34,14 @@ def create_app() -> FastAPI:
         redoc_url="/redoc" if (settings.DEBUG or settings.APP_ENV == "development") else None,
         openapi_url="/openapi.json" if (settings.DEBUG or settings.APP_ENV == "development") else None,
         lifespan=lifespan,
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     # Global Exception Handlers for safe, non-leaking error responses

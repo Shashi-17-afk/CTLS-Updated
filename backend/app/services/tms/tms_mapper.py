@@ -728,6 +728,10 @@ class TMSMapperService:
         )
 
         raw_driver = getattr(dossier, "driver_name", None)
+        if raw_driver:
+            raw_driver_norm = re.sub(r"[^A-Za-z\s.]+", "", str(raw_driver)).strip().title()
+            if len(raw_driver_norm) >= 3 and not any(k in raw_driver_norm.upper() for k in ["DRIVER", "OWNER", "TRUCK", "NAME", "PALLIPALAYAM", "UNKNOWN"]):
+                raw_driver = raw_driver_norm
         m_driver, m_phone, m_notes = resolve_fleet_driver(dossier.truck_number)
 
         if raw_driver and not is_garbled_driver_name(raw_driver):
@@ -786,6 +790,19 @@ class TMSMapperService:
             is_mandatory=True,
             data_type=TMSFieldDataType.PHONE,
             audit_note="10-digit mobile number from trip sheet" if valid_phone else "check driver phone; manual entry required",
+        )
+
+        raw_license = getattr(dossier, "driver_license", None)
+        trip_fields["driver_license"] = TMSExtractedField(
+            field_name="Driver License",
+            clean_id="driver_license",
+            value=raw_license,
+            status=FieldStatus.VERIFIED if raw_license else FieldStatus.NOT_FOUND,
+            confidence=0.90 if raw_license else 0.0,
+            source_page=min(source_pages) if (raw_license and source_pages) else None,
+            is_mandatory=False,
+            data_type=TMSFieldDataType.TEXT,
+            audit_note="Driver Driving Licence from trip sheet header" if raw_license else "Driver License optional/review",
         )
 
         trip_fields["vendor_name"] = TMSExtractedField(

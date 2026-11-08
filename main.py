@@ -10,5 +10,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("SERVER_PORT", os.environ.get("PORT", "8000")))
     
     print(f"Starting Logistics Document Processing & OCR Service on {host}:{port}")
-    uvicorn.run("backend.app.main:app", host=host, port=port)
+    uvicorn.run("backend.app.main:app", host=host, port=port, timeout_keep_alive=600)
 
